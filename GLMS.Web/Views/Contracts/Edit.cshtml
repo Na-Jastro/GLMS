@@ -1,0 +1,111 @@
+﻿@model GLMS.Core.Models.Contract
+
+<div class="flex justify-between items-center mb-8">
+    <h1 class="text-2xl font-semibold">Edit Contract</h1>
+
+    <a asp-action="Index"
+       class="text-sm text-gray-600 hover:text-blue-600">
+        ← Back to Contracts
+    </a>
+</div>
+
+<form asp-action="Edit"
+      method="post"
+      class="bg-white p-8 rounded-xl shadow-sm border max-w-2xl space-y-6">
+
+    @Html.AntiForgeryToken()
+
+    <!-- Hidden ID -->
+    <input type="hidden" asp-for="Id" />
+
+    <!-- Validation Summary -->
+    <div asp-validation-summary="ModelOnly"
+         class="text-red-600 text-sm"></div>
+
+    <!-- Client -->
+    <div>
+        <label asp-for="ClientId"
+               class="block text-sm font-medium mb-2"></label>
+
+        <select asp-for="ClientId"
+                asp-items="ViewBag.Clients"
+                class="w-full border rounded-lg p-3 focus:ring-2 focus:ring-blue-500">
+        </select>
+
+        <span asp-validation-for="ClientId"
+              class="text-red-500 text-sm"></span>
+    </div>
+
+    <!-- Dates -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+        <div>
+            <label asp-for="StartDate"
+                   class="block text-sm font-medium mb-2"></label>
+
+            <input asp-for="StartDate"
+                   type="date"
+                   class="w-full border rounded-lg p-3 focus:ring-2 focus:ring-blue-500" />
+
+            <span asp-validation-for="StartDate"
+                  class="text-red-500 text-sm"></span>
+        </div>
+
+        <div>
+            <label asp-for="EndDate"
+                   class="block text-sm font-medium mb-2"></label>
+
+            <input asp-for="EndDate"
+                   type="date"
+                   class="w-full border rounded-lg p-3 focus:ring-2 focus:ring-blue-500" />
+
+            <span asp-validation-for="EndDate"
+                  class="text-red-500 text-sm"></span>
+        </div>
+
+    </div>
+
+    <!-- Status -->
+    <div>
+        <label asp-for="Status"
+               class="block text-sm font-medium mb-2"></label>
+
+        <select asp-for="Status"
+                asp-items="ViewBag.StatusList"
+                class="w-full border rounded-lg p-3 focus:ring-2 focus:ring-blue-500">
+        </select>
+
+        <span asp-validation-for="Status"
+              class="text-red-500 text-sm"></span>
+    </div>
+
+    <!-- Service Level -->
+    <div>
+        <label asp-for="ServiceLevel"
+               class="block text-sm font-medium mb-2"></label>
+
+        <input asp-for="ServiceLevel"
+               class="w-full border rounded-lg p-3 focus:ring-2 focus:ring-blue-500" />
+
+        <span asp-validation-for="ServiceLevel"
+              class="text-red-500 text-sm"></span>
+    </div>
+
+    <!-- Buttons -->
+    <div class="flex gap-4 pt-4">
+        <button type="submit"
+                class="bg-yellow-500 text-white px-6 py-3 rounded-lg hover:bg-yellow-600">
+            Update Contract
+        </button>
+
+        <a asp-action="Index"
+           class="bg-gray-200 px-6 py-3 rounded-lg hover:bg-gray-300">
+            Cancel
+        </a>
+    </div>
+
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

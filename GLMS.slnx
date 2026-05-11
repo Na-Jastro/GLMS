@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="GLMS.Core/GLMS.Core.csproj" Id="9ff96547-e7a2-4471-8130-116c92f95726" />
+  <Project Path="GLMS.Infrastructure/GLMS.Infrastructure.csproj" Id="810accb8-0cce-484a-98ca-0f0d544a70be" />
+  <Project Path="GLMS.Tests/GLMS.Tests.csproj" />
+  <Project Path="GLMS.Web/GLMS.Web.csproj" />
+</Solution>

@@ -1,0 +1,41 @@
+﻿@model GLMS.Core.Models.Client
+
+<div class="flex justify-between items-center mb-8">
+    <h1 class="text-2xl font-semibold text-red-600">Delete Client</h1>
+
+    <a asp-action="Index"
+       class="text-sm text-gray-600 hover:text-blue-600">
+        ← Back to Clients
+    </a>
+</div>
+
+<div class="bg-white p-8 rounded-xl shadow-sm border max-w-lg">
+
+    <p class="mb-6 text-gray-700">
+        Are you sure you want to permanently delete this client?
+        This action cannot be undone.
+    </p>
+
+    <div class="bg-red-50 p-4 rounded mb-6">
+        <p><strong>Name:</strong> @Model.Name</p>
+        <p><strong>Contact:</strong> @Model.ContactDetails</p>
+        <p><strong>Region:</strong> @Model.Region</p>
+    </div>
+
+    <form asp-action="Delete">
+        @Html.AntiForgeryToken()
+        <input type="hidden" asp-for="Id" />
+
+        <div class="flex gap-4">
+            <button class="bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700">
+                Confirm Delete
+            </button>
+
+            <a asp-action="Index"
+               class="bg-gray-200 px-6 py-3 rounded-lg hover:bg-gray-300">
+                Cancel
+            </a>
+        </div>
+    </form>
+
+</div>

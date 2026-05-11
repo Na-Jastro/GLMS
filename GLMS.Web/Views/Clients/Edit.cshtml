@@ -1,0 +1,69 @@
+﻿@model GLMS.Core.Models.Client
+
+<div class="flex justify-between items-center mb-8">
+    <h1 class="text-2xl font-semibold">Edit Client</h1>
+
+    <a asp-action="Index"
+       class="text-sm text-gray-600 hover:text-blue-600">
+        ← Back to Clients
+    </a>
+</div>
+
+<form asp-action="Edit"
+      method="post"
+      class="bg-white p-8 rounded-xl shadow-sm border max-w-xl space-y-6">
+
+    @Html.AntiForgeryToken()
+    <input type="hidden" asp-for="Id" />
+
+    <div asp-validation-summary="ModelOnly"
+         class="text-red-600 text-sm"></div>
+
+    <!-- Name -->
+    <div>
+        <label asp-for="Name"
+               class="block text-sm font-medium mb-2"></label>
+
+        <input asp-for="Name"
+               class="w-full border rounded-lg p-3 focus:ring-2 focus:ring-blue-500" />
+
+        <span asp-validation-for="Name"
+              class="text-red-500 text-sm"></span>
+    </div>
+
+    <!-- Contact -->
+    <div>
+        <label asp-for="ContactDetails"
+               class="block text-sm font-medium mb-2"></label>
+
+        <input asp-for="ContactDetails"
+               class="w-full border rounded-lg p-3 focus:ring-2 focus:ring-blue-500" />
+    </div>
+
+    <!-- Region -->
+    <div>
+        <label asp-for="Region"
+               class="block text-sm font-medium mb-2"></label>
+
+        <input asp-for="Region"
+               class="w-full border rounded-lg p-3 focus:ring-2 focus:ring-blue-500" />
+    </div>
+
+    <!-- Buttons -->
+    <div class="flex gap-4 pt-4">
+        <button type="submit"
+                class="bg-yellow-500 text-white px-6 py-3 rounded-lg hover:bg-yellow-600">
+            Update Client
+        </button>
+
+        <a asp-action="Index"
+           class="bg-gray-200 px-6 py-3 rounded-lg hover:bg-gray-300">
+            Cancel
+        </a>
+    </div>
+
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

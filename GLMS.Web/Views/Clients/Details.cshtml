@@ -1,0 +1,83 @@
+﻿@using GLMS.Core.Models
+@model GLMS.Core.Models.Client
+
+<div class="flex justify-between items-center mb-8">
+    <h1 class="text-2xl font-semibold">Client Details</h1>
+
+    <a asp-action="Index"
+       class="text-sm text-gray-600 hover:text-blue-600">
+        ← Back to Clients
+    </a>
+</div>
+
+<div class="bg-white p-8 rounded-xl shadow-sm border max-w-2xl space-y-6">
+
+    <!-- Client Info -->
+    <div>
+        <p class="text-sm text-gray-500">Name</p>
+        <p class="text-lg font-medium">@Model.Name</p>
+    </div>
+
+    <div>
+        <p class="text-sm text-gray-500">Contact Details</p>
+        <p>@Model.ContactDetails</p>
+    </div>
+
+    <div>
+        <p class="text-sm text-gray-500">Region</p>
+        <p>@Model.Region</p>
+    </div>
+
+    <!-- Contracts Section -->
+    <div class="pt-6 border-t">
+        <h2 class="text-lg font-semibold mb-4">Contracts</h2>
+
+        @if (Model.Contracts != null && Model.Contracts.Any())
+        {
+            <div class="space-y-3">
+                @foreach (var contract in Model.Contracts)
+                {
+                    <div class="border p-4 rounded-lg flex justify-between items-center hover:bg-gray-50">
+                        <div>
+                            <p class="font-medium">
+                                @contract.StartDate.ToShortDateString()
+                                →
+                                @contract.EndDate.ToShortDateString()
+                            </p>
+
+                            <p class="text-sm text-gray-500">
+                                SLA: @contract.ServiceLevel
+                            </p>
+                        </div>
+
+                        <span class="px-3 py-1 rounded-full text-xs font-medium
+                                    @(contract.Status == ContractStatus.Active ? "bg-green-100 text-green-700" :
+                                                            contract.Status == ContractStatus.Expired ? "bg-red-100 text-red-700" :
+                                                            contract.Status == ContractStatus.OnHold ? "bg-yellow-100 text-yellow-700" :
+                                                            "bg-gray-100 text-gray-700")">
+                            @contract.Status
+                        </span>
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <p class="text-gray-500 text-sm">No contracts found for this client.</p>
+        }
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="flex gap-4 pt-6">
+        <a asp-action="Edit" asp-route-id="@Model.Id"
+           class="bg-yellow-500 text-white px-6 py-2 rounded-lg hover:bg-yellow-600">
+            Edit
+        </a>
+
+        <a asp-action="Delete" asp-route-id="@Model.Id"
+           class="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700">
+            Delete
+        </a>
+    </div>
+
+</div>

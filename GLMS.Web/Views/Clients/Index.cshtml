@@ -1,0 +1,43 @@
+﻿@model IEnumerable<GLMS.Core.Models.Client>
+
+<div class="flex justify-between items-center mb-8">
+    <h1 class="text-2xl font-semibold">Clients</h1>
+
+    <a asp-action="Create"
+       class="bg-blue-600 text-white px-5 py-2.5 rounded-lg hover:bg-blue-700 text-sm">
+        + New Client
+    </a>
+</div>
+
+<div class="bg-white rounded-xl shadow-sm border overflow-hidden">
+    <table class="w-full text-sm">
+        <thead class="bg-gray-50 text-gray-600 uppercase text-xs">
+            <tr>
+                <th class="p-4 text-left">Name</th>
+                <th>Contact</th>
+                <th>Region</th>
+                <th class="text-right p-4">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in Model)
+            {
+                <tr class="border-t hover:bg-gray-50">
+                    <td class="p-4 font-medium">@item.Name</td>
+                    <td>@item.ContactDetails</td>
+                    <td>@item.Region</td>
+                    <td class="text-right p-4 space-x-4">
+                        <a asp-action="Details" asp-route-id="@item.Id"
+                           class="text-blue-600 hover:underline">View</a>
+
+                        <a asp-action="Edit" asp-route-id="@item.Id"
+                           class="text-yellow-600 hover:underline">Edit</a>
+
+                        <a asp-action="Delete" asp-route-id="@item.Id"
+                           class="text-red-600 hover:underline">Delete</a>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>

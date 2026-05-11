@@ -1,0 +1,63 @@
+﻿@model GLMS.Core.Models.ServiceRequest
+
+<div class="max-w-2xl">
+
+    <h1 class="text-2xl font-semibold mb-6">
+        Service Request
+    </h1>
+
+    <div class="bg-white p-6 rounded-xl shadow-sm border space-y-4">
+
+        <div>
+            <span class="text-sm text-gray-500">Title</span>
+            <p class="font-medium">@Model.Title</p>
+        </div>
+
+        <div>
+            <span class="text-sm text-gray-500">Description</span>
+            <p>@Model.Description</p>
+        </div>
+
+        <div>
+            <span class="text-sm text-gray-500">Status</span>
+
+            <span class="inline-block px-3 py-1 rounded-full text-xs font-medium
+    @(Model.Status == "Open" ? "bg-green-100 text-green-700" :
+                        Model.Status == "Closed" ? "bg-red-100 text-red-700" :
+                        "bg-gray-100 text-gray-700")">
+                @Model.Status
+            </span>
+
+        </div>
+
+        <div>
+            <span class="text-sm text-gray-500">Contract Client</span>
+            <p>@(Model.Contract?.Client?.Name ?? "N/A")</p>
+        </div>
+
+        <div>
+            <span class="text-sm text-gray-500">Created</span>
+            <p>@Model.CreatedDate.ToString("dd MMM yyyy")</p>
+        </div>
+        <div>
+            <span class="text-sm text-gray-500">Cost (USD)</span>
+            <p>$@Model.AmountUSD</p>
+        </div>
+
+        <div>
+            <span class="text-sm text-gray-500">Local Cost (ZAR)</span>
+            <p>R @Model.LocalCostZAR</p>
+        </div>
+
+        <div class="pt-4">
+
+            <a asp-action="Index"
+               class="text-blue-600 hover:underline text-sm font-medium">
+                ← Back to Requests
+            </a>
+
+        </div>
+
+    </div>
+
+</div>

@@ -1,0 +1,36 @@
+﻿@model GLMS.Core.Models.ServiceRequest
+
+<h2 class="text-2xl font-semibold mb-6">Create Service Request</h2>
+
+<form asp-action="Create" method="post"
+      class="bg-white p-6 rounded-lg shadow-md space-y-4">
+
+    <div>
+        <label class="block text-sm font-medium mb-1">Contract</label>
+
+        <select asp-for="ContractId"
+                asp-items="ViewBag.Contracts"
+                class="w-full border rounded-lg p-2">
+        </select>
+    </div>
+
+    <div>
+        <label class="block text-sm font-medium mb-1">Title</label>
+
+        <input asp-for="Title"
+               class="w-full border rounded-lg p-2" />
+    </div>
+
+    <div>
+        <label class="block text-sm font-medium mb-1">Description</label>
+
+        <textarea asp-for="Description"
+                  class="w-full border rounded-lg p-2"></textarea>
+    </div>
+
+    <button type="submit"
+            class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+        Create Request
+    </button>
+
+</form>
