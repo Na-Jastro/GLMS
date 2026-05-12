@@ -1,11 +1,12 @@
-﻿using System.Net.Http;
+﻿using GLMS.Infrastructure.Services;
+using System.Net.Http;
 using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace GLMS.Web.Services
 {
 
-    public class CurrencyService
+    public class CurrencyService : ICurrencyService
     {
         private readonly HttpClient _httpClient;
 

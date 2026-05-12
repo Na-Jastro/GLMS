@@ -1,33 +1,37 @@
 ﻿using GLMS.Core.Models;
-using GLMS.Web.Data;
-using GLMS.Web.Models;
-using GLMS.Web.Services;
+using GLMS.Core.Repositories;
+using GLMS.Infrastructure.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
-using Microsoft.EntityFrameworkCore;
 
 namespace GLMS.Web.Controllers
 {
     public class ContractsController : Controller
     {
-        private readonly ApplicationDbContext _context;
-        private readonly ContractService _service;
+        private readonly IContractRepository _contractRepository;
+        private readonly IContractService _service;
         private readonly IWebHostEnvironment _environment;
+        private readonly ILogger<ContractsController> _logger;
 
         public ContractsController(
-            ApplicationDbContext context,
-            ContractService service,
-            IWebHostEnvironment environment)
+            IContractRepository contractRepository,
+            IContractService service,
+            IWebHostEnvironment environment,
+            ILogger<ContractsController> logger)
         {
-            _context = context;
+            _contractRepository = contractRepository;
             _service = service;
             _environment = environment;
+            _logger = logger;
         }
 
-        private void LoadDropdowns(int? selectedClient = null)
+        private async Task LoadDropdowns(
+            int? selectedClient = null)
         {
+            var clients = await _contractRepository.GetClientsAsync();
+
             ViewBag.Clients = new SelectList(
-                _context.Clients.OrderBy(c => c.Name),
+                clients,
                 "Id",
                 "Name",
                 selectedClient);
@@ -36,185 +40,426 @@ namespace GLMS.Web.Controllers
                 Enum.GetValues(typeof(ContractStatus)));
         }
 
-        // SEARCH / FILTER USING LINQ
+        // GET: Contracts
         public async Task<IActionResult> Index(
             DateTime? start,
             DateTime? end,
             ContractStatus? status,
-            int? clientId)
+            int? clientId,
+            CancellationToken cancellationToken)
         {
-            await _service.AutoUpdateExpiryAsync();
+            try
+            {
+                await _service.AutoUpdateExpiryAsync();
 
-            var query = _context.Contracts
-                .Include(c => c.Client)
-                .AsQueryable();
+                var contracts = await _contractRepository.GetAllAsync(
+                    start,
+                    end,
+                    status,
+                    clientId,
+                    cancellationToken);
 
-            if (start.HasValue)
-                query = query.Where(c => c.StartDate >= start.Value);
+                ViewBag.Clients = new SelectList(
+                    await _contractRepository.GetClientsAsync(cancellationToken),
+                    "Id",
+                    "Name");
 
-            if (end.HasValue)
-                query = query.Where(c => c.EndDate <= end.Value);
+                ViewBag.Total = await _contractRepository
+                    .GetTotalCountAsync(cancellationToken);
 
-            if (status.HasValue)
-                query = query.Where(c => c.Status == status.Value);
+                ViewBag.Active = await _contractRepository
+                    .GetActiveCountAsync(cancellationToken);
 
-            if (clientId.HasValue)
-                query = query.Where(c => c.ClientId == clientId.Value);
+                ViewBag.Expired = await _contractRepository
+                    .GetExpiredCountAsync(cancellationToken);
 
-            ViewBag.Clients = new SelectList(_context.Clients, "Id", "Name");
+                return View(contracts);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error loading contracts.");
 
-            ViewBag.Total = await _context.Contracts.CountAsync();
-            ViewBag.Active = await _context.Contracts.CountAsync(c => c.Status == ContractStatus.Active);
-            ViewBag.Expired = await _context.Contracts.CountAsync(c => c.Status == ContractStatus.Expired);
+                TempData["Error"] =
+                    "An error occurred while loading contracts.";
 
-            return View(await query.ToListAsync());
+                return View(new List<Contract>());
+            }
         }
 
-        public async Task<IActionResult> Details(int id)
+        // GET: Contracts/Details/5
+        public async Task<IActionResult> Details(
+            int id,
+            CancellationToken cancellationToken)
         {
-            var contract = await _context.Contracts
-                    .Include(c => c.Client)
-                    .Include(c => c.ServiceRequests)
-                    .FirstOrDefaultAsync(c => c.Id == id);
+            try
+            {
+                var contract = await _contractRepository
+                    .GetDetailsAsync(id, cancellationToken);
 
-            if (contract == null) return NotFound();
+                if (contract == null)
+                {
+                    TempData["Error"] = "Contract not found.";
 
-            return View(contract);
+                    return RedirectToAction(nameof(Index));
+                }
+
+                return View(contract);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Error loading contract details for Id {ContractId}",
+                    id);
+
+                TempData["Error"] =
+                    "An error occurred while loading contract details.";
+
+                return RedirectToAction(nameof(Index));
+            }
         }
 
-        public IActionResult Create()
+        // GET: Contracts/Create
+        public async Task<IActionResult> Create()
         {
-            LoadDropdowns();
+            await LoadDropdowns();
+
             return View();
         }
 
+        // POST: Contracts/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create(Contract contract)
+        public async Task<IActionResult> Create(
+            Contract contract,
+            CancellationToken cancellationToken)
         {
-            if (!ModelState.IsValid)
+            try
             {
-                LoadDropdowns(contract.ClientId);
+                if (contract.EndDate < contract.StartDate)
+                {
+                    ModelState.AddModelError(
+                        nameof(contract.EndDate),
+                        "End date cannot be before start date.");
+                }
+
+                if (!ModelState.IsValid)
+                {
+                    await LoadDropdowns(contract.ClientId);
+
+                    return View(contract);
+                }
+
+                await _contractRepository
+                    .CreateAsync(contract, cancellationToken);
+
+                TempData["Success"] =
+                    "Contract created successfully.";
+
+                return RedirectToAction(nameof(Index));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creating contract.");
+
+                TempData["Error"] =
+                    "An error occurred while creating contract.";
+
+                await LoadDropdowns(contract.ClientId);
+
                 return View(contract);
             }
-
-            _context.Add(contract);
-            await _context.SaveChangesAsync();
-
-            return RedirectToAction(nameof(Index));
         }
 
-        public async Task<IActionResult> Edit(int id)
+        // GET: Contracts/Edit/5
+        public async Task<IActionResult> Edit(
+            int id,
+            CancellationToken cancellationToken)
         {
-            var contract = await _context.Contracts.FindAsync(id);
-            if (contract == null) return NotFound();
+            try
+            {
+                var contract = await _contractRepository
+                    .GetByIdAsync(id, cancellationToken);
 
-            LoadDropdowns(contract.ClientId);
-            return View(contract);
+                if (contract == null)
+                {
+                    TempData["Error"] = "Contract not found.";
+
+                    return RedirectToAction(nameof(Index));
+                }
+
+                await LoadDropdowns(contract.ClientId);
+
+                return View(contract);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Error loading contract for edit. Id {ContractId}",
+                    id);
+
+                TempData["Error"] =
+                    "An error occurred while loading contract.";
+
+                return RedirectToAction(nameof(Index));
+            }
         }
 
+        // POST: Contracts/Edit/5
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, Contract contract)
+        public async Task<IActionResult> Edit(
+            int id,
+            Contract contract,
+            CancellationToken cancellationToken)
         {
-            if (id != contract.Id) return NotFound();
-
-            if (!ModelState.IsValid)
+            try
             {
-                LoadDropdowns(contract.ClientId);
+                if (id != contract.Id)
+                {
+                    TempData["Error"] = "Invalid contract.";
+
+                    return RedirectToAction(nameof(Index));
+                }
+
+                if (contract.EndDate < contract.StartDate)
+                {
+                    ModelState.AddModelError(
+                        nameof(contract.EndDate),
+                        "End date cannot be before start date.");
+                }
+
+                if (!ModelState.IsValid)
+                {
+                    await LoadDropdowns(contract.ClientId);
+
+                    return View(contract);
+                }
+
+                await _contractRepository
+                    .UpdateAsync(contract, cancellationToken);
+
+                TempData["Success"] =
+                    "Contract updated successfully.";
+
+                return RedirectToAction(nameof(Index));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Error updating contract. Id {ContractId}",
+                    id);
+
+                TempData["Error"] =
+                    "An error occurred while updating contract.";
+
+                await LoadDropdowns(contract.ClientId);
+
                 return View(contract);
             }
-
-            _context.Update(contract);
-            await _context.SaveChangesAsync();
-
-            return RedirectToAction(nameof(Index));
         }
 
-        public async Task<IActionResult> Delete(int id)
+        // GET: Contracts/Delete/5
+        public async Task<IActionResult> Delete(
+            int id,
+            CancellationToken cancellationToken)
         {
-            var contract = await _context.Contracts
-                .Include(c => c.Client)
-                .FirstOrDefaultAsync(c => c.Id == id);
+            try
+            {
+                var contract = await _contractRepository
+                    .GetDetailsAsync(id, cancellationToken);
 
-            if (contract == null) return NotFound();
+                if (contract == null)
+                {
+                    TempData["Error"] = "Contract not found.";
 
-            return View(contract);
+                    return RedirectToAction(nameof(Index));
+                }
+
+                return View(contract);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Error loading contract for delete. Id {ContractId}",
+                    id);
+
+                TempData["Error"] =
+                    "An error occurred while loading contract.";
+
+                return RedirectToAction(nameof(Index));
+            }
         }
 
+        // POST: Contracts/Delete/5
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> DeleteConfirmed(int id)
+        public async Task<IActionResult> DeleteConfirmed(
+            int id,
+            CancellationToken cancellationToken)
         {
-            var contract = await _context.Contracts.FindAsync(id);
-            if (contract == null) return NotFound();
+            try
+            {
+                var deleted = await _contractRepository
+                    .DeleteAsync(id, cancellationToken);
 
-            _context.Remove(contract);
-            await _context.SaveChangesAsync();
+                if (!deleted)
+                {
+                    TempData["Error"] = "Contract not found.";
 
-            return RedirectToAction(nameof(Index));
+                    return RedirectToAction(nameof(Index));
+                }
+
+                TempData["Success"] =
+                    "Contract deleted successfully.";
+
+                return RedirectToAction(nameof(Index));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Error deleting contract. Id {ContractId}",
+                    id);
+
+                TempData["Error"] =
+                    "An error occurred while deleting contract.";
+
+                return RedirectToAction(nameof(Index));
+            }
         }
 
+        // POST: Contracts/UploadSignedAgreement
         [HttpPost]
-        public async Task<IActionResult> UploadSignedAgreement(int id, IFormFile file)
+        public async Task<IActionResult> UploadSignedAgreement(
+            int id,
+            IFormFile file,
+            CancellationToken cancellationToken)
         {
-            if (file == null || file.Length == 0)
+            try
             {
-                TempData["Error"] = "No file selected.";
+                if (file == null || file.Length == 0)
+                {
+                    TempData["Error"] = "No file selected.";
+
+                    return RedirectToAction(nameof(Index));
+                }
+
+                if (Path.GetExtension(file.FileName).ToLower() != ".pdf")
+                {
+                    TempData["Error"] =
+                        "Only PDF files are allowed.";
+
+                    return RedirectToAction(nameof(Index));
+                }
+
+                var contract = await _contractRepository
+                    .GetByIdAsync(id, cancellationToken);
+
+                if (contract == null)
+                {
+                    TempData["Error"] = "Contract not found.";
+
+                    return RedirectToAction(nameof(Index));
+                }
+
+                var uploadFolder = Path.Combine(
+                    _environment.WebRootPath,
+                    "agreements");
+
+                if (!Directory.Exists(uploadFolder))
+                {
+                    Directory.CreateDirectory(uploadFolder);
+                }
+
+                var fileName =
+                    $"contract_{id}_{Guid.NewGuid()}.pdf";
+
+                var filePath = Path.Combine(
+                    uploadFolder,
+                    fileName);
+
+                using (var stream = new FileStream(
+                    filePath,
+                    FileMode.Create))
+                {
+                    await file.CopyToAsync(stream, cancellationToken);
+                }
+
+                contract.SignedAgreementPath =
+                    $"/agreements/{fileName}";
+
+                await _contractRepository
+                    .UpdateAsync(contract, cancellationToken);
+
+                TempData["Success"] =
+                    "Signed agreement uploaded successfully.";
+
                 return RedirectToAction(nameof(Index));
             }
-
-            if (Path.GetExtension(file.FileName).ToLower() != ".pdf")
+            catch (Exception ex)
             {
-                TempData["Error"] = "Only PDF files are allowed.";
+                _logger.LogError(
+                    ex,
+                    "Error uploading agreement.");
+
+                TempData["Error"] =
+                    "An error occurred while uploading agreement.";
+
                 return RedirectToAction(nameof(Index));
             }
-
-            var contract = await _context.Contracts.FindAsync(id);
-
-            if (contract == null)
-            {
-                TempData["Error"] = "Contract not found.";
-                return RedirectToAction(nameof(Index));
-            }
-
-            var uploadFolder = Path.Combine(_environment.WebRootPath, "agreements");
-
-            if (!Directory.Exists(uploadFolder))
-                Directory.CreateDirectory(uploadFolder);
-
-            var fileName = $"contract_{id}_{Guid.NewGuid()}.pdf";
-            var filePath = Path.Combine(uploadFolder, fileName);
-
-            using (var stream = new FileStream(filePath, FileMode.Create))
-            {
-                await file.CopyToAsync(stream);
-            }
-
-            contract.SignedAgreementPath = $"/agreements/{fileName}";
-            _context.Update(contract);
-            await _context.SaveChangesAsync();
-
-            TempData["Success"] = "Signed agreement uploaded successfully.";
-
-            return RedirectToAction(nameof(Index));
         }
 
-        [HttpGet("{id}/download")]
-        public async Task<IActionResult> DownloadAgreement(int id)
+        // GET: Contracts/DownloadAgreement/5
+        public async Task<IActionResult> DownloadAgreement(
+            int id,
+            CancellationToken cancellationToken)
         {
-            var contract = await _context.Contracts.FindAsync(id);
+            try
+            {
+                var contract = await _contractRepository
+                    .GetByIdAsync(id, cancellationToken);
 
-            if (contract == null || string.IsNullOrEmpty(contract.SignedAgreementPath))
-                return NotFound("Agreement not found.");
+                if (contract == null ||
+                    string.IsNullOrEmpty(contract.SignedAgreementPath))
+                {
+                    return NotFound();
+                }
 
-            var filePath = Path.Combine(
-                _environment.WebRootPath,
-                contract.SignedAgreementPath.TrimStart('/'));
+                var filePath = Path.Combine(
+                    _environment.WebRootPath,
+                    contract.SignedAgreementPath.TrimStart('/'));
 
-            var bytes = await System.IO.File.ReadAllBytesAsync(filePath);
+                if (!System.IO.File.Exists(filePath))
+                {
+                    TempData["Error"] =
+                        "Agreement file not found.";
 
-            return File(bytes, "application/pdf", "SignedAgreement.pdf");
+                    return RedirectToAction(nameof(Index));
+                }
+
+                var bytes = await System.IO.File
+                    .ReadAllBytesAsync(filePath, cancellationToken);
+
+                return File(
+                    bytes,
+                    "application/pdf",
+                    "SignedAgreement.pdf");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Error downloading agreement.");
+
+                TempData["Error"] =
+                    "An error occurred while downloading agreement.";
+
+                return RedirectToAction(nameof(Index));
+            }
         }
     }
 }

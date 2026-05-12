@@ -22,8 +22,7 @@ namespace GLMS.Infrastructure.Configuration
                    .IsRequired();
 
             builder.Property(c => c.Status)
-                   .IsRequired()
-                   .HasConversion<string>();
+                   .IsRequired();
 
             builder.Property(c => c.ServiceLevel)
                    .IsRequired()

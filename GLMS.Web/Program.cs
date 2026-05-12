@@ -1,7 +1,8 @@
 using GLMS.Core.Repositories;
 using GLMS.Infrastructure;
+using GLMS.Infrastructure.Repository;
+using GLMS.Infrastructure.Services;
 using GLMS.Infrastructure.Storage;
-using GLMS.Web.Data;
 using GLMS.Web.Services;
 using Microsoft.EntityFrameworkCore;
 
@@ -10,16 +11,15 @@ var builder = WebApplication.CreateBuilder(args);
 // IMPORTANT: Use MVC
 builder.Services.AddControllersWithViews();
 
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(
-        builder.Configuration.GetConnectionString("DefaultConnection")));
-
 builder.Services.AddDbContext<GLMSDbContext>(options =>
     options.UseSqlServer(
         builder.Configuration.GetConnectionString("DefaultConnection")));
 
-builder.Services.AddScoped<ContractService>();
+builder.Services.AddScoped<IContractService, ContractService>();
+builder.Services.AddScoped<ICurrencyService, CurrencyService>();
 builder.Services.AddScoped<IClientRepository, ClientRepository>();
+builder.Services.AddScoped<IContractRepository, ContractRepository>();
+builder.Services.AddScoped<IServiceRequestRepository, ServiceRequestRepository>();
 builder.Services.AddHttpClient<CurrencyService>();
 
 var app = builder.Build();

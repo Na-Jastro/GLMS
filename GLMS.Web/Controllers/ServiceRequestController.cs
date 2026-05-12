@@ -1,117 +1,231 @@
 ﻿using GLMS.Core.Models;
-using GLMS.Web.Data;
+using GLMS.Core.Repositories;
+using GLMS.Infrastructure.Services;
 using GLMS.Web.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
-using Microsoft.EntityFrameworkCore;
 
 namespace GLMS.Web.Controllers
 {
     public class ServiceRequestsController : Controller
     {
-        private readonly ApplicationDbContext _context;
-        private readonly CurrencyService _currencyService;
-        public ServiceRequestsController(ApplicationDbContext context, CurrencyService currencyService)
+        private readonly IServiceRequestRepository _serviceRequestRepository;
+        private readonly ICurrencyService _currencyService;
+        private readonly ILogger<ServiceRequestsController> _logger;
+
+        public ServiceRequestsController(
+            IServiceRequestRepository serviceRequestRepository,
+            ICurrencyService currencyService,
+            ILogger<ServiceRequestsController> logger)
         {
-            _context = context;
+            _serviceRequestRepository = serviceRequestRepository;
             _currencyService = currencyService;
+            _logger = logger;
         }
 
-        // LIST ALL REQUESTS
-        public async Task<IActionResult> Index()
+        // LOAD CONTRACTS DROPDOWN
+        private async Task LoadContractsDropdown(
+            int? selectedContract = null)
         {
-            var requests = await _context.ServiceRequests
-                .Include(r => r.Contract)
-                .ThenInclude(p => p.Client)
-                .ToListAsync();
+            var contracts = await _serviceRequestRepository
+                .GetContractsAsync();
 
-            return View(requests);
-        }
-
-        // CREATE PAGE
-        public IActionResult Create()
-        {
             ViewBag.Contracts = new SelectList(
-                _context.Contracts
-                    .Include(c => c.Client)
-                    .Select(c => new
-                    {
-                        c.Id,
-                        Name = c.Client.Name
-                    }),
+                contracts.Select(c => new
+                {
+                    c.Id,
+                    Name = c.Client != null
+                        ? c.Client.Name
+                        : $"Contract #{c.Id}"
+                }),
                 "Id",
-                "Name");
+                "Name",
+                selectedContract);
+        }
+
+        // GET: ServiceRequests
+        public async Task<IActionResult> Index(
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                var requests = await _serviceRequestRepository
+                    .GetAllAsync(cancellationToken);
+
+                return View(requests);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Error loading service requests.");
+
+                TempData["Error"] =
+                    "An error occurred while loading service requests.";
+
+                return View(new List<ServiceRequest>());
+            }
+        }
+
+        // GET: ServiceRequests/Create
+        public async Task<IActionResult> Create()
+        {
+            await LoadContractsDropdown();
 
             return View();
         }
-        // CREATE REQUEST
+
+        // POST: ServiceRequests/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create(ServiceRequest request)
+        public async Task<IActionResult> Create(
+            ServiceRequest request,
+            CancellationToken cancellationToken)
         {
-            var contract = await _context.Contracts
-                .FirstOrDefaultAsync(c => c.Id == request.ContractId);
+            try
+            {
+                var contract = await _serviceRequestRepository
+                    .GetContractAsync(
+                        request.ContractId,
+                        cancellationToken);
 
-            if (contract == null)
-            {
-                ModelState.AddModelError("", "Parent contract not found.");
-            }
-            else if (contract.Status == ContractStatus.Expired ||
-                     contract.Status == ContractStatus.OnHold)
-            {
-                ModelState.AddModelError("",
-                    "Cannot create Service Request. Contract is Expired or On Hold.");
-            }
+                if (contract == null)
+                {
+                    ModelState.AddModelError(
+                        "",
+                        "Parent contract not found.");
+                }
+                else if (contract.Status == ContractStatus.Expired ||
+                         contract.Status == ContractStatus.OnHold)
+                {
+                    ModelState.AddModelError(
+                        "",
+                        "Cannot create Service Request. Contract is Expired or On Hold.");
+                }
 
-            if (!ModelState.IsValid)
+                if (request.AmountUSD <= 0)
+                {
+                    ModelState.AddModelError(
+                        nameof(request.AmountUSD),
+                        "Amount must be greater than zero.");
+                }
+
+                if (string.IsNullOrWhiteSpace(request.Title))
+                {
+                    ModelState.AddModelError(
+                        nameof(request.Title),
+                        "Title is required.");
+                }
+
+                if (string.IsNullOrWhiteSpace(request.Description))
+                {
+                    ModelState.AddModelError(
+                        nameof(request.Description),
+                        "Description is required.");
+                }
+
+                if (!ModelState.IsValid)
+                {
+                    await LoadContractsDropdown(request.ContractId);
+
+                    return View(request);
+                }
+
+                request.CreatedDate = DateTime.UtcNow;
+
+                request.Status = "Open";
+
+                // EXTERNAL API
+                var rate = await _currencyService
+                    .GetUsdToZarRate();
+
+                request.LocalCostZAR =
+                    request.AmountUSD * rate;
+
+                await _serviceRequestRepository
+                    .CreateAsync(request, cancellationToken);
+
+                TempData["Success"] =
+                    "Service request created successfully.";
+
+                return RedirectToAction(nameof(Index));
+            }
+            catch (Exception ex)
             {
-                ViewBag.Contracts = new SelectList(
-                    _context.Contracts.Include(c => c.Client),
-                    "Id",
-                    "Client.Name",
-                    request.ContractId);
+                _logger.LogError(
+                    ex,
+                    "Error creating service request.");
+
+                TempData["Error"] =
+                    "An error occurred while creating service request.";
+
+                await LoadContractsDropdown(request.ContractId);
 
                 return View(request);
             }
-
-            request.CreatedDate = DateTime.UtcNow;
-
-            // CALL EXTERNAL API
-            var rate = await _currencyService.GetUsdToZarRate();
-
-            // AUTO CALCULATE ZAR
-            request.LocalCostZAR = request.AmountUSD * rate;
-
-            _context.ServiceRequests.Add(request);
-            await _context.SaveChangesAsync();
-
-            TempData["Success"] = "Service request created successfully.";
-
-            return RedirectToAction(nameof(Index));
         }
 
-        // DETAILS
-        public async Task<IActionResult> Details(int id)
+        // GET: ServiceRequests/Details/5
+        public async Task<IActionResult> Details(
+            int id,
+            CancellationToken cancellationToken)
         {
-            var request = await _context.ServiceRequests
-                .Include(r => r.Contract)
-                .ThenInclude(p => p.Client)
-                .FirstOrDefaultAsync(r => r.Id == id);
+            try
+            {
+                var request = await _serviceRequestRepository
+                    .GetDetailsAsync(id, cancellationToken);
 
-            if (request == null)
-                return NotFound();
+                if (request == null)
+                {
+                    TempData["Error"] =
+                        "Service request not found.";
 
-            return View(request);
+                    return RedirectToAction(nameof(Index));
+                }
+
+                return View(request);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Error loading service request details. Id {RequestId}",
+                    id);
+
+                TempData["Error"] =
+                    "An error occurred while loading service request details.";
+
+                return RedirectToAction(nameof(Index));
+            }
         }
 
+        // AJAX USD -> ZAR
         [HttpGet]
-        public async Task<IActionResult> ConvertUsdToZar(decimal usd)
+        public async Task<IActionResult> ConvertUsdToZar(
+            decimal usd)
         {
-            var rate = await _currencyService.GetUsdToZarRate();
+            try
+            {
+                if (usd <= 0)
+                {
+                    return Json(0);
+                }
 
-            var zar = usd * rate;
+                var rate = await _currencyService
+                    .GetUsdToZarRate();
 
-            return Json(zar);
+                var zar = usd * rate;
+
+                return Json(zar);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Error converting USD to ZAR.");
+
+                return Json(0);
+            }
         }
     }
 }

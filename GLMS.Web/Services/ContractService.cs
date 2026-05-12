@@ -1,14 +1,15 @@
-﻿using GLMS.Web.Data;
-using GLMS.Core.Models;
+﻿using GLMS.Core.Models;
+using GLMS.Infrastructure.Services;
+using GLMS.Infrastructure.Storage;
 using Microsoft.EntityFrameworkCore;
 
 namespace GLMS.Web.Services
 {
-    public class ContractService
+    public class ContractService : IContractService
     {
-        private readonly ApplicationDbContext _context;
+        private readonly GLMSDbContext _context;
 
-        public ContractService(ApplicationDbContext context)
+        public ContractService(GLMSDbContext context)
         {
             _context = context;
         }
