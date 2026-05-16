@@ -4,7 +4,9 @@ using GLMS.Core.Repositories;
 using GLMS.Infrastructure.Services;
 using GLMS.Web.Controllers;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Microsoft.Extensions.Logging;
 using Moq;
 
@@ -199,8 +201,102 @@ namespace GLMS.Tests.Controllers
             // Assert
             result.Should().BeOfType<ViewResult>();
         }
+        [Theory]
+        //[InlineData("SignedAgreement.pdf", true)]
+        [InlineData("SignedAgreement.docx", false)]
+        public async Task UploadSignedAgreement_ShouldOnlyAllowPdfFiles(
+    string fileName,
+    bool shouldPass)
+        {
+            // Arrange
+            var contract = new Contract
+            {
+                Id = 1
+            };
 
-    
+            _repositoryMock
+                .Setup(r => r.GetByIdAsync(
+                    1,
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(contract);
+
+            _environmentMock
+                .Setup(e => e.WebRootPath)
+                .Returns(Path.GetTempPath());
+
+            var filePath =
+                Path.Combine(
+                    Directory.GetCurrentDirectory(),
+                    "Documents",
+                    fileName);
+
+            using var stream =
+                new FileStream(
+                    filePath,
+                    FileMode.Open,
+                    FileAccess.Read);
+
+            IFormFile file =
+                new FormFile(
+                    stream,
+                    0,
+                    stream.Length,
+                    "file",
+                    fileName)
+                {
+                    Headers = new HeaderDictionary(),
+                    ContentType =
+                        fileName.EndsWith(".pdf")
+                            ? "application/pdf"
+                            : "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                };
+
+            _controller.TempData =
+                new TempDataDictionary(
+                    new DefaultHttpContext(),
+                    Mock.Of<ITempDataProvider>());
+
+            // Act
+            var result =
+                await _controller.UploadSignedAgreement(
+                    1,
+                    file,
+                    CancellationToken.None);
+
+            // Assert
+            result.Should()
+                .BeOfType<RedirectToActionResult>();
+
+            if (shouldPass)
+            {
+                _controller.TempData["Success"]
+                    .Should()
+                    .Be("Signed agreement uploaded successfully.");
+
+                contract.SignedAgreementPath
+                    .Should()
+                    .NotBeNullOrWhiteSpace();
+
+                _repositoryMock.Verify(
+                    r => r.UpdateAsync(
+                        contract,
+                        It.IsAny<CancellationToken>()),
+                    Times.Once);
+            }
+            else
+            {
+                _controller.TempData["Error"]
+                    .Should()
+                    .Be("Only PDF files are allowed.");
+
+                _repositoryMock.Verify(
+                    r => r.UpdateAsync(
+                        It.IsAny<Contract>(),
+                        It.IsAny<CancellationToken>()),
+                    Times.Never);
+            }
+        }
+
         [Fact]
         public async Task DownloadAgreement_ShouldReturnNotFound_WhenContractMissing()
         {
