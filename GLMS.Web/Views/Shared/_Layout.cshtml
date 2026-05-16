@@ -1,57 +1,151 @@
-﻿<!DOCTYPE html>
-<html>
+﻿@using Microsoft.AspNetCore.Http
+@inject IHttpContextAccessor HttpContextAccessor
+
+@{
+    var userEmail = HttpContextAccessor.HttpContext.Session.GetString("UserEmail");
+}
+
+<!DOCTYPE html>
+<html lang="en">
 <head>
     <meta charset="utf-8" />
-    <title>GLMS - Contract Hub</title>
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0" />
+
+    <title>@ViewData["Title"] - GLMS Contract Hub</title>
 
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
 
     <!-- Google Font -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+          rel="stylesheet">
 
     <style>
         body {
-            font-family: 'Inter', sans-serif;
+        font-family: 'Inter', sans-serif;
         }
     </style>
 </head>
 
-<body class="bg-gray-100 text-gray-800">
+<body class="bg-gray-100 text-gray-800 min-h-screen flex flex-col">
 
     <!-- NAVBAR -->
-    <nav class="bg-white shadow-sm border-b">
+    <header class="bg-white shadow-sm border-b sticky top-0 z-50">
+
         <div class="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-            <div class="text-xl font-semibold text-gray-800">
+
+            <!-- LOGO -->
+            <a asp-controller="Contracts"
+                   asp-action="Index"
+                   class="text-2xl font-bold text-blue-600 hover:text-blue-700 transition">
                 GLMS
-            </div>
+            </a>
 
-            <div class="flex gap-6 text-sm font-medium">
-                <a asp-controller="Contracts"
-                   asp-action="Index"
-                   class="text-gray-600 hover:text-blue-600">
-                    Contracts
-                </a>
-                <a asp-controller="Clients"
-                   asp-action="Index"
-                   class="text-gray-600 hover:text-blue-600">
-                    Clients
-                </a>
-                <a asp-controller="ServiceRequests"
-                   asp-action="Index"
-                   class="text-gray-600 hover:text-blue-600">
-                    Service Requests
-                </a>
-            </div>
+            <!-- NAVIGATION -->
+            <nav class="flex items-center gap-6 text-sm font-medium">
+
+                @if (string.IsNullOrEmpty(userEmail))
+                {
+                    <!-- LOGIN -->
+                    <a asp-controller="Account"
+                           asp-action="Login"
+                           class="text-gray-600 hover:text-blue-600 transition">
+                        Login
+                    </a>
+
+                    <!-- REGISTER -->
+                    <a asp-controller="Account"
+                           asp-action="Register"
+                           class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition">
+                        Register
+                    </a>
+                }
+                else
+                {
+                    <!-- DASHBOARD -->
+                    <a asp-controller="Account"
+                           asp-action="Dashboard"
+                           class="text-gray-600 hover:text-blue-600 transition">
+                        Dashboard
+                    </a>
+
+                    <!-- CONTRACTS -->
+                    <a asp-controller="Contracts"
+                           asp-action="Index"
+                           class="text-gray-600 hover:text-blue-600 transition">
+                        Contracts
+                    </a>
+
+                    <!-- CLIENTS -->
+                    <a asp-controller="Clients"
+                           asp-action="Index"
+                           class="text-gray-600 hover:text-blue-600 transition">
+                        Clients
+                    </a>
+
+                    <!-- SERVICE REQUESTS -->
+                    <a asp-controller="ServiceRequests"
+                           asp-action="Index"
+                           class="text-gray-600 hover:text-blue-600 transition">
+                        Service Requests
+                    </a>
+
+                    <!-- USER EMAIL -->
+                    <span class="text-gray-500 font-medium">
+                        @userEmail
+                    </span>
+
+                    <!-- LOGOUT -->
+                    <a asp-controller="Account"
+                           asp-action="Logout"
+                           class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition">
+                        Logout
+                    </a>
+                }
+
+            </nav>
+
         </div>
-    </nav>
 
-    <!-- CONTENT -->
-    <div class="max-w-7xl mx-auto px-6 py-8">
-        @RenderBody()
-    </div>
+    </header>
 
-    <!-- 🔥 THIS FIXES YOUR ERROR -->
+    <!-- MAIN CONTENT -->
+    <main class="flex-1">
+
+        <div class="max-w-7xl mx-auto px-6 py-8">
+
+            <!-- SUCCESS MESSAGE -->
+            @if (TempData["SuccessMessage"] != null)
+            {
+                <div class="mb-6 bg-green-100 border border-green-300 text-green-700 px-4 py-3 rounded-xl">
+                    @TempData["SuccessMessage"]
+                </div>
+            }
+
+            <!-- ERROR MESSAGE -->
+            @if (TempData["ErrorMessage"] != null)
+            {
+                <div class="mb-6 bg-red-100 border border-red-300 text-red-700 px-4 py-3 rounded-xl">
+                    @TempData["ErrorMessage"]
+                </div>
+            }
+
+            <div class="bg-white rounded-2xl shadow-lg p-8">
+                @RenderBody()
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="bg-white border-t">
+        <div class="max-w-7xl mx-auto px-6 py-4 text-center text-sm text-gray-500">
+            © @DateTime.Now.Year GLMS Contract Hub. All rights reserved.
+        </div>
+    </footer>
+
     @RenderSection("Scripts", required: false)
 
 </body>

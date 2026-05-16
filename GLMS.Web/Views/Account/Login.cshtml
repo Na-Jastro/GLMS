@@ -1,0 +1,49 @@
+﻿<!-- Views/Account/Login.cshtml -->
+
+<div class="max-w-md mx-auto bg-white p-8 rounded-2xl shadow-lg">
+
+    <h2 class="text-3xl font-bold mb-6 text-center">
+        Login
+    </h2>
+
+    <form method="post" class="space-y-4">
+
+        <div>
+            <label class="block mb-2 text-sm font-medium">
+                Email
+            </label>
+
+            <input type="email"
+                   name="email"
+                   class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+
+        <div>
+            <label class="block mb-2 text-sm font-medium">
+                Password
+            </label>
+
+            <input type="password"
+                   name="password"
+                   class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+
+        <button type="submit"
+                class="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-semibold transition">
+            Login
+        </button>
+
+        <p class="text-red-500 text-sm">
+            @ViewBag.Message
+        </p>
+
+        <div class="text-center mt-4">
+            <a asp-action="Register"
+                   class="text-blue-600 hover:underline">
+                Create Account
+            </a>
+        </div>
+
+    </form>
+
+</div>

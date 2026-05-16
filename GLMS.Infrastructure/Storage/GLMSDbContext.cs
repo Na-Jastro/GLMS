@@ -14,6 +14,7 @@ namespace GLMS.Infrastructure.Storage
         }
         public DbSet<Client> Clients => Set<Client>();
         public DbSet<Contract> Contracts => Set<Contract>();
+        public DbSet<User> Users { get; set; }
         public DbSet<ServiceRequest> ServiceRequests => Set<ServiceRequest>();
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

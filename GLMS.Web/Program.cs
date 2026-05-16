@@ -10,6 +10,9 @@ var builder = WebApplication.CreateBuilder(args);
 
 // IMPORTANT: Use MVC
 builder.Services.AddControllersWithViews();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddDistributedMemoryCache();
+builder.Services.AddSession();
 
 builder.Services.AddDbContext<GLMSDbContext>(options =>
     options.UseSqlServer(
@@ -33,6 +36,7 @@ if (!app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseStaticFiles();   // REQUIRED for CSS, uploads etc
 app.UseRouting();
+app.UseSession();
 app.UseAuthorization();
 
 // IMPORTANT: Map controller routes

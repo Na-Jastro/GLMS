@@ -1,5 +1,8 @@
-﻿using GLMS.Core.Models;
+﻿// Controllers/ClientsController.cs
+
+using GLMS.Core.Models;
 using GLMS.Core.Repositories;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace GLMS.Web.Controllers
@@ -17,10 +20,34 @@ namespace GLMS.Web.Controllers
             _logger = logger;
         }
 
+        // LOGIN CHECK
+        private IActionResult? CheckLogin()
+        {
+            var userEmail =
+                HttpContext.Session.GetString("UserEmail");
+
+            if (string.IsNullOrEmpty(userEmail))
+            {
+                TempData["ErrorMessage"] =
+                    "Please login first.";
+
+                return RedirectToAction(
+                    "Login",
+                    "Account");
+            }
+
+            return null;
+        }
+
         // GET: Clients
         public async Task<IActionResult> Index(
             CancellationToken cancellationToken)
         {
+            var auth = CheckLogin();
+
+            if (auth != null)
+                return auth;
+
             try
             {
                 var clients = await _clientRepository
@@ -34,7 +61,7 @@ namespace GLMS.Web.Controllers
                     ex,
                     "Error occurred while retrieving clients.");
 
-                TempData["Error"] =
+                TempData["ErrorMessage"] =
                     "An error occurred while loading clients.";
 
                 return View(new List<Client>());
@@ -46,6 +73,11 @@ namespace GLMS.Web.Controllers
             int id,
             CancellationToken cancellationToken)
         {
+            var auth = CheckLogin();
+
+            if (auth != null)
+                return auth;
+
             try
             {
                 var client = await _clientRepository
@@ -53,7 +85,9 @@ namespace GLMS.Web.Controllers
 
                 if (client == null)
                 {
-                    TempData["Error"] = "Client not found.";
+                    TempData["ErrorMessage"] =
+                        "Client not found.";
+
                     return NotFound();
                 }
 
@@ -66,7 +100,7 @@ namespace GLMS.Web.Controllers
                     "Error occurred while retrieving client details for Id {ClientId}.",
                     id);
 
-                TempData["Error"] =
+                TempData["ErrorMessage"] =
                     "An error occurred while loading client details.";
 
                 return RedirectToAction(nameof(Index));
@@ -76,6 +110,11 @@ namespace GLMS.Web.Controllers
         // GET: Clients/Create
         public IActionResult Create()
         {
+            var auth = CheckLogin();
+
+            if (auth != null)
+                return auth;
+
             return View();
         }
 
@@ -86,6 +125,11 @@ namespace GLMS.Web.Controllers
             Client client,
             CancellationToken cancellationToken)
         {
+            var auth = CheckLogin();
+
+            if (auth != null)
+                return auth;
+
             try
             {
                 if (!ModelState.IsValid)
@@ -94,7 +138,7 @@ namespace GLMS.Web.Controllers
                 await _clientRepository
                     .CreateAsync(client, cancellationToken);
 
-                TempData["Success"] =
+                TempData["SuccessMessage"] =
                     "Client created successfully.";
 
                 return RedirectToAction(nameof(Index));
@@ -105,7 +149,7 @@ namespace GLMS.Web.Controllers
                     ex,
                     "Error occurred while creating client.");
 
-                TempData["Error"] =
+                TempData["ErrorMessage"] =
                     "An error occurred while creating the client.";
 
                 return View(client);
@@ -117,6 +161,11 @@ namespace GLMS.Web.Controllers
             int id,
             CancellationToken cancellationToken)
         {
+            var auth = CheckLogin();
+
+            if (auth != null)
+                return auth;
+
             try
             {
                 var client = await _clientRepository
@@ -124,7 +173,9 @@ namespace GLMS.Web.Controllers
 
                 if (client == null)
                 {
-                    TempData["Error"] = "Client not found.";
+                    TempData["ErrorMessage"] =
+                        "Client not found.";
+
                     return NotFound();
                 }
 
@@ -137,7 +188,7 @@ namespace GLMS.Web.Controllers
                     "Error occurred while loading client for editing. Id: {ClientId}",
                     id);
 
-                TempData["Error"] =
+                TempData["ErrorMessage"] =
                     "An error occurred while loading the client.";
 
                 return RedirectToAction(nameof(Index));
@@ -152,11 +203,18 @@ namespace GLMS.Web.Controllers
             Client client,
             CancellationToken cancellationToken)
         {
+            var auth = CheckLogin();
+
+            if (auth != null)
+                return auth;
+
             try
             {
                 if (id != client.Id)
                 {
-                    TempData["Error"] = "Invalid client request.";
+                    TempData["ErrorMessage"] =
+                        "Invalid client request.";
+
                     return BadRequest();
                 }
 
@@ -166,7 +224,7 @@ namespace GLMS.Web.Controllers
                 await _clientRepository
                     .UpdateAsync(client, cancellationToken);
 
-                TempData["Success"] =
+                TempData["SuccessMessage"] =
                     "Client updated successfully.";
 
                 return RedirectToAction(nameof(Index));
@@ -178,7 +236,8 @@ namespace GLMS.Web.Controllers
                     "Client not found for update. Id: {ClientId}",
                     id);
 
-                TempData["Error"] = "Client not found.";
+                TempData["ErrorMessage"] =
+                    "Client not found.";
 
                 return NotFound();
             }
@@ -189,7 +248,7 @@ namespace GLMS.Web.Controllers
                     "Error occurred while updating client. Id: {ClientId}",
                     id);
 
-                TempData["Error"] =
+                TempData["ErrorMessage"] =
                     "An error occurred while updating the client.";
 
                 return View(client);
@@ -201,6 +260,11 @@ namespace GLMS.Web.Controllers
             int id,
             CancellationToken cancellationToken)
         {
+            var auth = CheckLogin();
+
+            if (auth != null)
+                return auth;
+
             try
             {
                 var client = await _clientRepository
@@ -208,7 +272,9 @@ namespace GLMS.Web.Controllers
 
                 if (client == null)
                 {
-                    TempData["Error"] = "Client not found.";
+                    TempData["ErrorMessage"] =
+                        "Client not found.";
+
                     return NotFound();
                 }
 
@@ -221,7 +287,7 @@ namespace GLMS.Web.Controllers
                     "Error occurred while loading client for deletion. Id: {ClientId}",
                     id);
 
-                TempData["Error"] =
+                TempData["ErrorMessage"] =
                     "An error occurred while loading the client.";
 
                 return RedirectToAction(nameof(Index));
@@ -235,6 +301,11 @@ namespace GLMS.Web.Controllers
             int id,
             CancellationToken cancellationToken)
         {
+            var auth = CheckLogin();
+
+            if (auth != null)
+                return auth;
+
             try
             {
                 var deleted = await _clientRepository
@@ -242,11 +313,13 @@ namespace GLMS.Web.Controllers
 
                 if (!deleted)
                 {
-                    TempData["Error"] = "Client not found.";
+                    TempData["ErrorMessage"] =
+                        "Client not found.";
+
                     return NotFound();
                 }
 
-                TempData["Success"] =
+                TempData["SuccessMessage"] =
                     "Client deleted successfully.";
 
                 return RedirectToAction(nameof(Index));
@@ -258,7 +331,7 @@ namespace GLMS.Web.Controllers
                     "Error occurred while deleting client. Id: {ClientId}",
                     id);
 
-                TempData["Error"] =
+                TempData["ErrorMessage"] =
                     "An error occurred while deleting the client.";
 
                 return RedirectToAction(nameof(Index));

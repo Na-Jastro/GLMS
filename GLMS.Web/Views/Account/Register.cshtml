@@ -1,0 +1,58 @@
+﻿<!-- Views/Account/Register.cshtml -->
+@model GLMS.Core.Models.User
+
+<div class="max-w-md mx-auto bg-white p-8 rounded-2xl shadow-lg">
+
+    <h2 class="text-3xl font-bold mb-6 text-center">
+        Register
+    </h2>
+
+    <form method="post" class="space-y-4">
+
+        <div>
+            <label class="block mb-2 text-sm font-medium">
+                Full Name
+            </label>
+
+            <input asp-for="FullName"
+                   class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+
+        <div>
+            <label class="block mb-2 text-sm font-medium">
+                Email
+            </label>
+
+            <input asp-for="Email"
+                   class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+
+        <div>
+            <label class="block mb-2 text-sm font-medium">
+                Password
+            </label>
+
+            <input asp-for="Password"
+                   type="password"
+                   class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+
+        <button type="submit"
+                class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-semibold transition">
+            Register
+        </button>
+
+        <p class="text-red-500 text-sm">
+            @ViewBag.Message
+        </p>
+
+        <div class="text-center mt-4">
+            <a asp-action="Login"
+                   class="text-blue-600 hover:underline">
+                Already have an account?
+            </a>
+        </div>
+
+    </form>
+
+</div>

@@ -1,0 +1,256 @@
+﻿<!-- Views/Account/Dashboard.cshtml -->
+@using Microsoft.AspNetCore.Http
+@inject IHttpContextAccessor HttpContextAccessor
+
+@{
+    ViewData["Title"] = "Dashboard";
+
+    var userEmail =
+        HttpContextAccessor.HttpContext.Session
+            .GetString("UserEmail");
+
+    var currentDate =
+        DateTime.Now.ToString("dddd, dd MMMM yyyy");
+}
+
+<div class="space-y-8">
+
+    <!-- HEADER -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+
+        <div>
+            <h1 class="text-4xl font-bold text-gray-800">
+                Dashboard
+            </h1>
+
+            <p class="text-gray-500 mt-2">
+                Welcome back,
+                <span class="font-semibold text-blue-600">
+                    @userEmail
+                </span>
+            </p>
+
+            <p class="text-sm text-gray-400 mt-1">
+                @currentDate
+            </p>
+        </div>
+
+        <div>
+      @*       <a asp-controller="Account"
+                   asp-action="Logout"
+                   class="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-xl font-semibold shadow transition">
+                Logout
+            </a> *@
+        </div>
+
+    </div>
+
+
+    <!-- STATS -->
+    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+
+        <!-- TOTAL CONTRACTS -->
+        <div class="bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-2xl p-6 shadow-lg">
+
+            <p class="text-sm uppercase tracking-wide opacity-80">
+                Total Contracts
+            </p>
+
+            <h2 class="text-4xl font-bold mt-3">
+                @ViewBag.TotalContracts
+            </h2>
+
+        </div>
+
+        <!-- ACTIVE CONTRACTS -->
+        <div class="bg-gradient-to-r from-green-600 to-green-500 text-white rounded-2xl p-6 shadow-lg">
+
+            <p class="text-sm uppercase tracking-wide opacity-80">
+                Active Contracts
+            </p>
+
+            <h2 class="text-4xl font-bold mt-3">
+                @ViewBag.ActiveContracts
+            </h2>
+
+        </div>
+
+        <!-- EXPIRED CONTRACTS -->
+        <div class="bg-gradient-to-r from-red-600 to-red-500 text-white rounded-2xl p-6 shadow-lg">
+
+            <p class="text-sm uppercase tracking-wide opacity-80">
+                Expired Contracts
+            </p>
+
+            <h2 class="text-4xl font-bold mt-3">
+                @ViewBag.ExpiredContracts
+            </h2>
+
+        </div>
+
+        <!-- TOTAL CLIENTS -->
+        <div class="bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-2xl p-6 shadow-lg">
+
+            <p class="text-sm uppercase tracking-wide opacity-80">
+                Total Clients
+            </p>
+
+            <h2 class="text-4xl font-bold mt-3">
+                @ViewBag.TotalClients
+            </h2>
+
+        </div>
+
+    </div>
+
+
+    <!-- QUICK ACTIONS -->
+    <div class="bg-white rounded-2xl shadow-lg p-8">
+
+        <div class="flex items-center justify-between mb-6">
+
+            <div>
+                <h2 class="text-2xl font-bold text-gray-800">
+                    Quick Actions
+                </h2>
+
+                <p class="text-gray-500 mt-1">
+                    Access commonly used features quickly
+                </p>
+            </div>
+
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+
+            <!-- CONTRACTS -->
+            <a asp-controller="Contracts"
+                   asp-action="Index"
+                   class="border border-gray-200 hover:border-blue-500 hover:shadow-lg rounded-2xl p-6 transition group">
+
+                <div class="text-blue-600 text-4xl mb-4">
+                    📄
+                </div>
+
+                <h3 class="text-lg font-semibold text-gray-800 group-hover:text-blue-600">
+                    Contracts
+                </h3>
+
+                <p class="text-sm text-gray-500 mt-2">
+                    Manage all contracts and agreements
+                </p>
+
+            </a>
+
+            <!-- CLIENTS -->
+            <a asp-controller="Clients"
+                   asp-action="Index"
+                   class="border border-gray-200 hover:border-green-500 hover:shadow-lg rounded-2xl p-6 transition group">
+
+                <div class="text-green-600 text-4xl mb-4">
+                    👥
+                </div>
+
+                <h3 class="text-lg font-semibold text-gray-800 group-hover:text-green-600">
+                    Clients
+                </h3>
+
+                <p class="text-sm text-gray-500 mt-2">
+                    Manage client information
+                </p>
+
+            </a>
+
+            <!-- SERVICE REQUESTS -->
+            <a asp-controller="ServiceRequests"
+                   asp-action="Index"
+                   class="border border-gray-200 hover:border-purple-500 hover:shadow-lg rounded-2xl p-6 transition group">
+
+                <div class="text-purple-600 text-4xl mb-4">
+                    🛠️
+                </div>
+
+                <h3 class="text-lg font-semibold text-gray-800 group-hover:text-purple-600">
+                    Service Requests
+                </h3>
+
+                <p class="text-sm text-gray-500 mt-2">
+                    View and manage requests
+                </p>
+
+            </a>
+
+            <!-- CREATE CONTRACT -->
+            <a asp-controller="Contracts"
+                   asp-action="Create"
+                   class="border border-gray-200 hover:border-orange-500 hover:shadow-lg rounded-2xl p-6 transition group">
+
+                <div class="text-orange-600 text-4xl mb-4">
+                    ➕
+                </div>
+
+                <h3 class="text-lg font-semibold text-gray-800 group-hover:text-orange-600">
+                    New Contract
+                </h3>
+
+                <p class="text-sm text-gray-500 mt-2">
+                    Create a new contract quickly
+                </p>
+
+            </a>
+
+        </div>
+
+    </div>
+
+
+    <!-- SYSTEM OVERVIEW -->
+    <div class="bg-white rounded-2xl shadow-lg p-8">
+
+        <h2 class="text-2xl font-bold text-gray-800 mb-6">
+            System Overview
+        </h2>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+            <div class="bg-gray-50 rounded-xl p-6 border">
+
+                <h3 class="font-semibold text-gray-700">
+                    Current User
+                </h3>
+
+                <p class="text-lg font-bold text-blue-600 mt-2">
+                    @userEmail
+                </p>
+
+            </div>
+
+            <div class="bg-gray-50 rounded-xl p-6 border">
+
+                <h3 class="font-semibold text-gray-700">
+                    System Status
+                </h3>
+
+                <p class="text-lg font-bold text-green-600 mt-2">
+                    Online
+                </p>
+
+            </div>
+
+            <div class="bg-gray-50 rounded-xl p-6 border">
+
+                <h3 class="font-semibold text-gray-700">
+                    Last Login
+                </h3>
+
+                <p class="text-lg font-bold text-gray-800 mt-2">
+                    @DateTime.Now.ToString("HH:mm")
+                </p>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>

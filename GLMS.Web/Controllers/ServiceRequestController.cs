@@ -2,6 +2,7 @@
 using GLMS.Core.Repositories;
 using GLMS.Infrastructure.Services;
 using GLMS.Web.Services;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 
@@ -21,6 +22,25 @@ namespace GLMS.Web.Controllers
             _serviceRequestRepository = serviceRequestRepository;
             _currencyService = currencyService;
             _logger = logger;
+        }
+
+        // LOGIN CHECK
+        private IActionResult? CheckLogin()
+        {
+            var userEmail =
+                HttpContext.Session.GetString("UserEmail");
+
+            if (string.IsNullOrEmpty(userEmail))
+            {
+                TempData["ErrorMessage"] =
+                    "Please login first.";
+
+                return RedirectToAction(
+                    "Login",
+                    "Account");
+            }
+
+            return null;
         }
 
         // LOAD CONTRACTS DROPDOWN
@@ -47,6 +67,11 @@ namespace GLMS.Web.Controllers
         public async Task<IActionResult> Index(
             CancellationToken cancellationToken)
         {
+            var auth = CheckLogin();
+
+            if (auth != null)
+                return auth;
+
             try
             {
                 var requests = await _serviceRequestRepository
@@ -60,7 +85,7 @@ namespace GLMS.Web.Controllers
                     ex,
                     "Error loading service requests.");
 
-                TempData["Error"] =
+                TempData["ErrorMessage"] =
                     "An error occurred while loading service requests.";
 
                 return View(new List<ServiceRequest>());
@@ -70,6 +95,11 @@ namespace GLMS.Web.Controllers
         // GET: ServiceRequests/Create
         public async Task<IActionResult> Create()
         {
+            var auth = CheckLogin();
+
+            if (auth != null)
+                return auth;
+
             await LoadContractsDropdown();
 
             return View();
@@ -82,6 +112,11 @@ namespace GLMS.Web.Controllers
             ServiceRequest request,
             CancellationToken cancellationToken)
         {
+            var auth = CheckLogin();
+
+            if (auth != null)
+                return auth;
+
             try
             {
                 var contract = await _serviceRequestRepository
@@ -126,7 +161,8 @@ namespace GLMS.Web.Controllers
 
                 if (!ModelState.IsValid)
                 {
-                    await LoadContractsDropdown(request.ContractId);
+                    await LoadContractsDropdown(
+                        request.ContractId);
 
                     return View(request);
                 }
@@ -143,9 +179,11 @@ namespace GLMS.Web.Controllers
                     request.AmountUSD * rate;
 
                 await _serviceRequestRepository
-                    .CreateAsync(request, cancellationToken);
+                    .CreateAsync(
+                        request,
+                        cancellationToken);
 
-                TempData["Success"] =
+                TempData["SuccessMessage"] =
                     "Service request created successfully.";
 
                 return RedirectToAction(nameof(Index));
@@ -156,10 +194,11 @@ namespace GLMS.Web.Controllers
                     ex,
                     "Error creating service request.");
 
-                TempData["Error"] =
+                TempData["ErrorMessage"] =
                     "An error occurred while creating service request.";
 
-                await LoadContractsDropdown(request.ContractId);
+                await LoadContractsDropdown(
+                    request.ContractId);
 
                 return View(request);
             }
@@ -170,14 +209,21 @@ namespace GLMS.Web.Controllers
             int id,
             CancellationToken cancellationToken)
         {
+            var auth = CheckLogin();
+
+            if (auth != null)
+                return auth;
+
             try
             {
                 var request = await _serviceRequestRepository
-                    .GetDetailsAsync(id, cancellationToken);
+                    .GetDetailsAsync(
+                        id,
+                        cancellationToken);
 
                 if (request == null)
                 {
-                    TempData["Error"] =
+                    TempData["ErrorMessage"] =
                         "Service request not found.";
 
                     return RedirectToAction(nameof(Index));
@@ -192,7 +238,7 @@ namespace GLMS.Web.Controllers
                     "Error loading service request details. Id {RequestId}",
                     id);
 
-                TempData["Error"] =
+                TempData["ErrorMessage"] =
                     "An error occurred while loading service request details.";
 
                 return RedirectToAction(nameof(Index));
@@ -204,6 +250,11 @@ namespace GLMS.Web.Controllers
         public async Task<IActionResult> ConvertUsdToZar(
             decimal usd)
         {
+            var auth = CheckLogin();
+
+            if (auth != null)
+                return auth;
+
             try
             {
                 if (usd <= 0)
