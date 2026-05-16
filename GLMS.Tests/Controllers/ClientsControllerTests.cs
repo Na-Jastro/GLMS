@@ -2,6 +2,7 @@
 using GLMS.Core.Models;
 using GLMS.Core.Repositories;
 using GLMS.Web.Controllers;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -12,19 +13,52 @@ namespace GLMS.Tests.Controllers
     {
         private readonly Mock<IClientRepository> _repositoryMock;
         private readonly Mock<ILogger<ClientsController>> _loggerMock;
+
+        private readonly Mock<ISession> _sessionMock;
+        private readonly Mock<HttpContext> _httpContextMock;
+
         private readonly ClientsController _controller;
 
         public ClientsControllerTests()
         {
-            _repositoryMock = new Mock<IClientRepository>();
+            _repositoryMock =
+                new Mock<IClientRepository>();
 
-            _loggerMock = new Mock<ILogger<ClientsController>>();
+            _loggerMock =
+                new Mock<ILogger<ClientsController>>();
+
+            _sessionMock =
+                new Mock<ISession>();
+
+            _httpContextMock =
+                new Mock<HttpContext>();
+
+            // SESSION VALUE
+            var sessionBytes =
+                System.Text.Encoding.UTF8
+                    .GetBytes("test@test.com");
+
+            _sessionMock
+                .Setup(s => s.TryGetValue(
+                    "UserEmail",
+                    out sessionBytes))
+                .Returns(true);
+
+            _httpContextMock
+                .Setup(c => c.Session)
+                .Returns(_sessionMock.Object);
 
             _controller = new ClientsController(
                 _repositoryMock.Object,
                 _loggerMock.Object);
-        }
 
+            _controller.ControllerContext =
+                new ControllerContext
+                {
+                    HttpContext =
+                        _httpContextMock.Object
+                };
+        }
 
         [Fact]
         public async Task Index_ShouldReturnViewWithClients()
@@ -45,18 +79,24 @@ namespace GLMS.Tests.Controllers
             };
 
             _repositoryMock
-                .Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>()))
+                .Setup(r => r.GetAllAsync(
+                    It.IsAny<CancellationToken>()))
                 .ReturnsAsync(clients);
 
             // Act
-            var result = await _controller.Index(CancellationToken.None);
+            var result =
+                await _controller.Index(
+                    CancellationToken.None);
 
             // Assert
-            var viewResult = result as ViewResult;
+            result.Should().BeOfType<ViewResult>();
 
-            viewResult.Should().NotBeNull();
+            var viewResult =
+                result as ViewResult;
 
-            viewResult!.Model.Should().BeEquivalentTo(clients);
+            viewResult!.Model
+                .Should()
+                .BeEquivalentTo(clients);
         }
 
         [Fact]
@@ -76,16 +116,20 @@ namespace GLMS.Tests.Controllers
                 .ReturnsAsync(client);
 
             // Act
-            var result = await _controller.Details(
-                client.Id,
-                CancellationToken.None);
+            var result =
+                await _controller.Details(
+                    client.Id,
+                    CancellationToken.None);
 
             // Assert
-            var viewResult = result as ViewResult;
+            result.Should().BeOfType<ViewResult>();
 
-            viewResult.Should().NotBeNull();
+            var viewResult =
+                result as ViewResult;
 
-            viewResult!.Model.Should().Be(client);
+            viewResult!.Model
+                .Should()
+                .Be(client);
         }
 
         [Fact]
@@ -99,18 +143,21 @@ namespace GLMS.Tests.Controllers
                 "Required");
 
             // Act
-            var result = await _controller.Create(
-                client,
-                CancellationToken.None);
+            var result =
+                await _controller.Create(
+                    client,
+                    CancellationToken.None);
 
             // Assert
             result.Should().BeOfType<ViewResult>();
 
-            var viewResult = result as ViewResult;
+            var viewResult =
+                result as ViewResult;
 
-            viewResult!.Model.Should().Be(client);
+            viewResult!.Model
+                .Should()
+                .Be(client);
         }
-
 
         [Fact]
         public async Task Delete_Get_ShouldReturnView_WhenClientExists()
@@ -129,16 +176,20 @@ namespace GLMS.Tests.Controllers
                 .ReturnsAsync(client);
 
             // Act
-            var result = await _controller.Delete(
-                client.Id,
-                CancellationToken.None);
+            var result =
+                await _controller.Delete(
+                    client.Id,
+                    CancellationToken.None);
 
             // Assert
             result.Should().BeOfType<ViewResult>();
 
-            var viewResult = result as ViewResult;
+            var viewResult =
+                result as ViewResult;
 
-            viewResult!.Model.Should().Be(client);
+            viewResult!.Model
+                .Should()
+                .Be(client);
         }
     }
 }
