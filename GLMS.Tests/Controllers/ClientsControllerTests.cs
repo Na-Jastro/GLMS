@@ -48,9 +48,9 @@ namespace GLMS.Tests.Controllers
                 .Setup(c => c.Session)
                 .Returns(_sessionMock.Object);
 
-            _controller = new ClientsController(
-                _repositoryMock.Object,
-                _loggerMock.Object);
+            //_controller = new ClientsController(
+            //    _repositoryMock.Object,
+            //    _loggerMock.Object);
 
             _controller.ControllerContext =
                 new ControllerContext

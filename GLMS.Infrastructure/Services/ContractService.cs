@@ -3,7 +3,7 @@ using GLMS.Infrastructure.Services;
 using GLMS.Infrastructure.Storage;
 using Microsoft.EntityFrameworkCore;
 
-namespace GLMS.Web.Services
+namespace GLMS.Infrastructure.Services
 {
     public class ContractService : IContractService
     {

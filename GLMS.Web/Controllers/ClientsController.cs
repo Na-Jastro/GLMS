@@ -1,7 +1,6 @@
-﻿// Controllers/ClientsController.cs
-
+﻿
 using GLMS.Core.Models;
-using GLMS.Core.Repositories;
+using GLMS.Web.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
@@ -9,14 +8,14 @@ namespace GLMS.Web.Controllers
 {
     public class ClientsController : Controller
     {
-        private readonly IClientRepository _clientRepository;
+        private readonly IClientService _clientService;
         private readonly ILogger<ClientsController> _logger;
 
         public ClientsController(
-            IClientRepository clientRepository,
+            IClientService clientService,
             ILogger<ClientsController> logger)
         {
-            _clientRepository = clientRepository;
+            _clientService = clientService;
             _logger = logger;
         }
 
@@ -50,7 +49,7 @@ namespace GLMS.Web.Controllers
 
             try
             {
-                var clients = await _clientRepository
+                var clients = await _clientService
                     .GetAllAsync(cancellationToken);
 
                 return View(clients);
@@ -80,7 +79,7 @@ namespace GLMS.Web.Controllers
 
             try
             {
-                var client = await _clientRepository
+                var client = await _clientService
                     .GetDetailsAsync(id, cancellationToken);
 
                 if (client == null)
@@ -135,8 +134,16 @@ namespace GLMS.Web.Controllers
                 if (!ModelState.IsValid)
                     return View(client);
 
-                await _clientRepository
+                var created = await _clientService
                     .CreateAsync(client, cancellationToken);
+
+                if (!created)
+                {
+                    TempData["ErrorMessage"] =
+                        "Failed to create client.";
+
+                    return View(client);
+                }
 
                 TempData["SuccessMessage"] =
                     "Client created successfully.";
@@ -168,7 +175,7 @@ namespace GLMS.Web.Controllers
 
             try
             {
-                var client = await _clientRepository
+                var client = await _clientService
                     .GetByIdAsync(id, cancellationToken);
 
                 if (client == null)
@@ -221,25 +228,21 @@ namespace GLMS.Web.Controllers
                 if (!ModelState.IsValid)
                     return View(client);
 
-                await _clientRepository
+                var updated = await _clientService
                     .UpdateAsync(client, cancellationToken);
+
+                if (!updated)
+                {
+                    TempData["ErrorMessage"] =
+                        "Failed to update client.";
+
+                    return View(client);
+                }
 
                 TempData["SuccessMessage"] =
                     "Client updated successfully.";
 
                 return RedirectToAction(nameof(Index));
-            }
-            catch (KeyNotFoundException ex)
-            {
-                _logger.LogWarning(
-                    ex,
-                    "Client not found for update. Id: {ClientId}",
-                    id);
-
-                TempData["ErrorMessage"] =
-                    "Client not found.";
-
-                return NotFound();
             }
             catch (Exception ex)
             {
@@ -267,7 +270,7 @@ namespace GLMS.Web.Controllers
 
             try
             {
-                var client = await _clientRepository
+                var client = await _clientService
                     .GetByIdAsync(id, cancellationToken);
 
                 if (client == null)
@@ -308,7 +311,7 @@ namespace GLMS.Web.Controllers
 
             try
             {
-                var deleted = await _clientRepository
+                var deleted = await _clientService
                     .DeleteAsync(id, cancellationToken);
 
                 if (!deleted)
