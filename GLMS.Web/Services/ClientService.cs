@@ -38,14 +38,40 @@ namespace GLMS.Web.Services
         }
 
         public async Task<Client?> GetByIdAsync(
-            int id,
-            CancellationToken cancellationToken = default)
+     int id,
+     CancellationToken cancellationToken = default)
         {
             try
             {
-                return await _httpClient.GetFromJsonAsync<Client>(
-                    $"{BaseUrl}/{id}",
+                var url = $"{BaseUrl}/{id}";
+
+                _logger.LogInformation(
+                    "Calling API: {Url}",
+                    $"{_httpClient.BaseAddress}{url}");
+
+                var response = await _httpClient.GetAsync(
+                    url,
                     cancellationToken);
+
+                var content = await response.Content
+                    .ReadAsStringAsync(cancellationToken);
+
+                _logger.LogInformation(
+                    "Status Code: {StatusCode}",
+                    response.StatusCode);
+
+                _logger.LogInformation(
+                    "Response Content: {Content}",
+                    content);
+
+                response.EnsureSuccessStatusCode();
+
+                return System.Text.Json.JsonSerializer.Deserialize<Client>(
+                    content,
+                    new System.Text.Json.JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true
+                    });
             }
             catch (Exception ex)
             {
@@ -53,7 +79,7 @@ namespace GLMS.Web.Services
                     "Error retrieving client {ClientId}",
                     id);
 
-                return null;
+                throw;
             }
         }
 

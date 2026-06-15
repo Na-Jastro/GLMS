@@ -1,7 +1,6 @@
 ﻿
 using GLMS.Core.Models;
 using GLMS.Web.Services;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace GLMS.Web.Controllers

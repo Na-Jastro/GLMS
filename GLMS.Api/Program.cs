@@ -1,11 +1,18 @@
+using System.Text.Json.Serialization;
 using GLMS.Core.Repositories;
 using GLMS.Infrastructure;
 using GLMS.Infrastructure.Storage;
+using GLMS.Web.Services;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.ReferenceHandler =
+            ReferenceHandler.IgnoreCycles;
+    });
 
 builder.Services.AddDbContext<GLMSDbContext>(options =>
     options.UseSqlServer(
