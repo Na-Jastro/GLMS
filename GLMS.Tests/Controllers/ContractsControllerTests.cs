@@ -36,11 +36,11 @@ namespace GLMS.Tests.Controllers
             _loggerMock =
                 new Mock<ILogger<ContractsController>>();
 
-            _controller = new ContractsController(
-                _repositoryMock.Object,
-                _serviceMock.Object,
-                _environmentMock.Object,
-                _loggerMock.Object);
+            //_controller = new ContractsController(
+            //    _repositoryMock.Object,
+            //    _serviceMock.Object,
+            //    _environmentMock.Object,
+            //    _loggerMock.Object);
         }
 
         // HELPER

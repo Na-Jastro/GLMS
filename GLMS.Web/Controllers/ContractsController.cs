@@ -1,7 +1,5 @@
 ﻿using GLMS.Core.Models;
-using GLMS.Core.Repositories;
-using GLMS.Infrastructure.Services;
-using Microsoft.AspNetCore.Http;
+using GLMS.Web.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 
@@ -9,24 +7,20 @@ namespace GLMS.Web.Controllers
 {
     public class ContractsController : Controller
     {
-        private readonly IContractRepository _contractRepository;
-        private readonly IContractService _service;
-        private readonly IWebHostEnvironment _environment;
+        private readonly IContractApiService _contractApiService;
+        private readonly IClientService _clientService;
         private readonly ILogger<ContractsController> _logger;
 
         public ContractsController(
-            IContractRepository contractRepository,
-            IContractService service,
-            IWebHostEnvironment environment,
+            IContractApiService contractApiService,
+            IClientService clientService,
             ILogger<ContractsController> logger)
         {
-            _contractRepository = contractRepository;
-            _service = service;
-            _environment = environment;
+            _contractApiService = contractApiService;
+            _clientService = clientService;
             _logger = logger;
         }
 
-        // LOGIN CHECK
         private IActionResult? CheckLogin()
         {
             var userEmail =
@@ -45,12 +39,11 @@ namespace GLMS.Web.Controllers
             return null;
         }
 
-        // LOAD DROPDOWNS
         private async Task LoadDropdowns(
             int? selectedClient = null)
         {
-            var clients = await _contractRepository
-                .GetClientsAsync();
+            var clients =
+                await _clientService.GetAllAsync();
 
             ViewBag.Clients = new SelectList(
                 clients,
@@ -77,10 +70,8 @@ namespace GLMS.Web.Controllers
 
             try
             {
-                await _service.AutoUpdateExpiryAsync();
-
                 var contracts =
-                    await _contractRepository.GetAllAsync(
+                    await _contractApiService.GetAllAsync(
                         start,
                         end,
                         status,
@@ -88,22 +79,23 @@ namespace GLMS.Web.Controllers
                         cancellationToken);
 
                 ViewBag.Clients = new SelectList(
-                    await _contractRepository
-                        .GetClientsAsync(cancellationToken),
+                    await _clientService.GetAllAsync(
+                        cancellationToken),
                     "Id",
                     "Name");
 
+                var statistics =
+                    await _contractApiService.GetStatisticsAsync(
+                        cancellationToken);
+
                 ViewBag.Total =
-                    await _contractRepository
-                        .GetTotalCountAsync(cancellationToken);
+                    statistics?.Total ?? 0;
 
                 ViewBag.Active =
-                    await _contractRepository
-                        .GetActiveCountAsync(cancellationToken);
+                    statistics?.Active ?? 0;
 
                 ViewBag.Expired =
-                    await _contractRepository
-                        .GetExpiredCountAsync(cancellationToken);
+                    statistics?.Expired ?? 0;
 
                 return View(contracts);
             }
@@ -133,10 +125,9 @@ namespace GLMS.Web.Controllers
             try
             {
                 var contract =
-                    await _contractRepository
-                        .GetDetailsAsync(
-                            id,
-                            cancellationToken);
+                    await _contractApiService.GetByIdAsync(
+                        id,
+                        cancellationToken);
 
                 if (contract == null)
                 {
@@ -203,10 +194,20 @@ namespace GLMS.Web.Controllers
                     return View(contract);
                 }
 
-                await _contractRepository
-                    .CreateAsync(
+                var success =
+                    await _contractApiService.CreateAsync(
                         contract,
                         cancellationToken);
+
+                if (!success)
+                {
+                    TempData["ErrorMessage"] =
+                        "Failed to create contract.";
+
+                    await LoadDropdowns(contract.ClientId);
+
+                    return View(contract);
+                }
 
                 TempData["SuccessMessage"] =
                     "Contract created successfully.";
@@ -241,10 +242,9 @@ namespace GLMS.Web.Controllers
             try
             {
                 var contract =
-                    await _contractRepository
-                        .GetByIdAsync(
-                            id,
-                            cancellationToken);
+                    await _contractApiService.GetByIdAsync(
+                        id,
+                        cancellationToken);
 
                 if (contract == null)
                 {
@@ -309,10 +309,20 @@ namespace GLMS.Web.Controllers
                     return View(contract);
                 }
 
-                await _contractRepository
-                    .UpdateAsync(
+                var success =
+                    await _contractApiService.UpdateAsync(
                         contract,
                         cancellationToken);
+
+                if (!success)
+                {
+                    TempData["ErrorMessage"] =
+                        "Failed to update contract.";
+
+                    await LoadDropdowns(contract.ClientId);
+
+                    return View(contract);
+                }
 
                 TempData["SuccessMessage"] =
                     "Contract updated successfully.";
@@ -348,10 +358,9 @@ namespace GLMS.Web.Controllers
             try
             {
                 var contract =
-                    await _contractRepository
-                        .GetDetailsAsync(
-                            id,
-                            cancellationToken);
+                    await _contractApiService.GetByIdAsync(
+                        id,
+                        cancellationToken);
 
                 if (contract == null)
                 {
@@ -391,13 +400,12 @@ namespace GLMS.Web.Controllers
 
             try
             {
-                var deleted =
-                    await _contractRepository
-                        .DeleteAsync(
-                            id,
-                            cancellationToken);
+                var success =
+                    await _contractApiService.DeleteAsync(
+                        id,
+                        cancellationToken);
 
-                if (!deleted)
+                if (!success)
                 {
                     TempData["ErrorMessage"] =
                         "Contract not found.";
@@ -447,64 +455,19 @@ namespace GLMS.Web.Controllers
                     return RedirectToAction(nameof(Index));
                 }
 
-                var extension =
-                    Path.GetExtension(file.FileName)
-                        .ToLower();
+                var success =
+                    await _contractApiService.UploadAgreementAsync(
+                        id,
+                        file,
+                        cancellationToken);
 
-                if (extension != ".pdf")
+                if (!success)
                 {
                     TempData["ErrorMessage"] =
-                        "Only PDF files are allowed.";
+                        "Failed to upload agreement.";
 
                     return RedirectToAction(nameof(Index));
                 }
-
-                var contract =
-                    await _contractRepository
-                        .GetByIdAsync(
-                            id,
-                            cancellationToken);
-
-                if (contract == null)
-                {
-                    TempData["ErrorMessage"] =
-                        "Contract not found.";
-
-                    return RedirectToAction(nameof(Index));
-                }
-
-                var uploadFolder = Path.Combine(
-                    _environment.WebRootPath,
-                    "agreements");
-
-                if (!Directory.Exists(uploadFolder))
-                {
-                    Directory.CreateDirectory(uploadFolder);
-                }
-
-                var fileName =
-                    $"contract_{id}_{Guid.NewGuid()}.pdf";
-
-                var filePath = Path.Combine(
-                    uploadFolder,
-                    fileName);
-
-                using (var stream = new FileStream(
-                    filePath,
-                    FileMode.Create))
-                {
-                    await file.CopyToAsync(
-                        stream,
-                        cancellationToken);
-                }
-
-                contract.SignedAgreementPath =
-                    $"/agreements/{fileName}";
-
-                await _contractRepository
-                    .UpdateAsync(
-                        contract,
-                        cancellationToken);
 
                 TempData["SuccessMessage"] =
                     "Signed agreement uploaded successfully.";
@@ -536,15 +499,13 @@ namespace GLMS.Web.Controllers
 
             try
             {
-                var contract =
-                    await _contractRepository
-                        .GetByIdAsync(
+                var bytes =
+                    await _contractApiService
+                        .DownloadAgreementAsync(
                             id,
                             cancellationToken);
 
-                if (contract == null ||
-                    string.IsNullOrEmpty(
-                        contract.SignedAgreementPath))
+                if (bytes == null)
                 {
                     TempData["ErrorMessage"] =
                         "Agreement not found.";
@@ -552,28 +513,10 @@ namespace GLMS.Web.Controllers
                     return RedirectToAction(nameof(Index));
                 }
 
-                var filePath = Path.Combine(
-                    _environment.WebRootPath,
-                    contract.SignedAgreementPath.TrimStart('/'));
-
-                if (!System.IO.File.Exists(filePath))
-                {
-                    TempData["ErrorMessage"] =
-                        "Agreement file not found.";
-
-                    return RedirectToAction(nameof(Index));
-                }
-
-                var bytes =
-                    await System.IO.File
-                        .ReadAllBytesAsync(
-                            filePath,
-                            cancellationToken);
-
                 return File(
                     bytes,
                     "application/pdf",
-                    "SignedAgreement.pdf");
+                    $"Contract_{id}_Agreement.pdf");
             }
             catch (Exception ex)
             {
@@ -589,4 +532,3 @@ namespace GLMS.Web.Controllers
         }
     }
 }
-

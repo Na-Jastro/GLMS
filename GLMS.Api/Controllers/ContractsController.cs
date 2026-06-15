@@ -11,18 +11,15 @@ namespace GLMS.Web.Controllers.Api
     public class ContractsApiController : ControllerBase
     {
         private readonly IContractRepository _contractRepository;
-        private readonly IContractService _service;
         private readonly IWebHostEnvironment _environment;
         private readonly ILogger<ContractsApiController> _logger;
 
         public ContractsApiController(
             IContractRepository contractRepository,
-            IContractService service,
             IWebHostEnvironment environment,
             ILogger<ContractsApiController> logger)
         {
             _contractRepository = contractRepository;
-            _service = service;
             _environment = environment;
             _logger = logger;
         }
@@ -38,7 +35,7 @@ namespace GLMS.Web.Controllers.Api
         {
             try
             {
-                await _service.AutoUpdateExpiryAsync();
+                await _contractRepository.AutoUpdateExpiryAsync();
 
                 var contracts =
                     await _contractRepository.GetAllAsync(
@@ -282,7 +279,7 @@ namespace GLMS.Web.Controllers.Api
                     return NotFound("Contract not found.");
 
                 var uploadFolder = Path.Combine(
-                    _environment.WebRootPath,
+                    _environment.ContentRootPath,
                     "agreements");
 
                 if (!Directory.Exists(uploadFolder))
@@ -350,7 +347,7 @@ namespace GLMS.Web.Controllers.Api
                 }
 
                 var filePath = Path.Combine(
-                    _environment.WebRootPath,
+                    _environment.ContentRootPath,
                     contract.SignedAgreementPath.TrimStart('/'));
 
                 if (!System.IO.File.Exists(filePath))

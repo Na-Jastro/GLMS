@@ -1,10 +1,10 @@
 ﻿using GLMS.Core.Models;
 
-namespace GLMS.Core.Repositories
+namespace GLMS.Web.Services
 {
-    public interface IContractRepository
+    public interface IContractApiService
     {
-        Task<IEnumerable<Contract>> GetAllAsync(
+        Task<List<Contract>> GetAllAsync(
             DateTime? start = null,
             DateTime? end = null,
             ContractStatus? status = null,
@@ -15,15 +15,11 @@ namespace GLMS.Core.Repositories
             int id,
             CancellationToken cancellationToken = default);
 
-        Task<Contract?> GetDetailsAsync(
-            int id,
-            CancellationToken cancellationToken = default);
-
-        Task<Contract> CreateAsync(
+        Task<bool> CreateAsync(
             Contract contract,
             CancellationToken cancellationToken = default);
 
-        Task<Contract> UpdateAsync(
+        Task<bool> UpdateAsync(
             Contract contract,
             CancellationToken cancellationToken = default);
 
@@ -31,18 +27,19 @@ namespace GLMS.Core.Repositories
             int id,
             CancellationToken cancellationToken = default);
 
-        Task<int> GetTotalCountAsync(
+        Task<List<Client>> GetClientsAsync(
             CancellationToken cancellationToken = default);
 
-        Task<int> GetActiveCountAsync(
+        Task<ContractStatisticsDto?> GetStatisticsAsync(
             CancellationToken cancellationToken = default);
 
-        Task<int> GetExpiredCountAsync(
+        Task<bool> UploadAgreementAsync(
+            int id,
+            IFormFile file,
             CancellationToken cancellationToken = default);
 
-        Task<IEnumerable<Client>> GetClientsAsync(
+        Task<byte[]?> DownloadAgreementAsync(
+            int id,
             CancellationToken cancellationToken = default);
-
-        Task AutoUpdateExpiryAsync();
     }
 }

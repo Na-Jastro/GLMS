@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
 using GLMS.Core.Repositories;
 using GLMS.Infrastructure;
+using GLMS.Infrastructure.Repository;
 using GLMS.Infrastructure.Storage;
 using GLMS.Web.Services;
 using Microsoft.EntityFrameworkCore;
@@ -19,6 +20,7 @@ builder.Services.AddDbContext<GLMSDbContext>(options =>
         builder.Configuration.GetConnectionString("DefaultConnection")));
 
 builder.Services.AddScoped<IClientRepository, ClientRepository>();
+builder.Services.AddScoped<IContractRepository, ContractRepository>();
 
 builder.Services.AddOpenApi();
 builder.Services.AddEndpointsApiExplorer();
