@@ -32,6 +32,11 @@ builder.Services.AddHttpClient<IContractApiService, ContractApiService>(client =
 {
     client.BaseAddress = new Uri("https://localhost:7299/");
 });
+builder.Services.AddHttpClient<IServiceRequestApiService, ServiceRequestApiService>(client =>
+    {
+        client.BaseAddress =
+            new Uri("https://localhost:7299/");
+    });
 var app = builder.Build();
 
 if (!app.Environment.IsDevelopment())
