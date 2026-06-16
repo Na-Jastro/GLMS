@@ -3,7 +3,7 @@ using System.Net.Http;
 using System.Text.Json;
 using System.Threading.Tasks;
 
-namespace GLMS.Web.Services
+namespace GLMS.Infrastructure.Services
 {
 
     public class CurrencyService : ICurrencyService

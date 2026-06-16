@@ -24,7 +24,19 @@ builder.Services.AddScoped<IClientRepository, ClientRepository>();
 builder.Services.AddScoped<IContractRepository, ContractRepository>();
 builder.Services.AddScoped<IServiceRequestRepository, ServiceRequestRepository>();
 builder.Services.AddHttpClient<CurrencyService>();
-
+builder.Services.AddHttpClient<IClientService, ClientService>(client =>
+{
+    client.BaseAddress = new Uri("https://localhost:7299/");
+});
+builder.Services.AddHttpClient<IContractApiService, ContractApiService>(client =>
+{
+    client.BaseAddress = new Uri("https://localhost:7299/");
+});
+builder.Services.AddHttpClient<IServiceRequestApiService, ServiceRequestApiService>(client =>
+    {
+        client.BaseAddress =
+            new Uri("https://localhost:7299/");
+    });
 var app = builder.Build();
 
 if (!app.Environment.IsDevelopment())

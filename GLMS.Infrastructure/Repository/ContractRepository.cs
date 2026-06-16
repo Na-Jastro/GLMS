@@ -159,5 +159,21 @@ namespace GLMS.Infrastructure.Repository
                 .OrderBy(c => c.Name)
                 .ToListAsync(cancellationToken);
         }
+
+        public async Task AutoUpdateExpiryAsync()
+        {
+            var contracts = await _context.Contracts.ToListAsync();
+
+            foreach (var contract in contracts)
+            {
+                if (contract.EndDate < DateTime.Today &&
+                    contract.Status != ContractStatus.Expired)
+                {
+                    contract.Status = ContractStatus.Expired;
+                }
+            }
+
+            await _context.SaveChangesAsync();
+        }
     }
 }

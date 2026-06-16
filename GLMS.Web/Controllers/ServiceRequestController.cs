@@ -1,7 +1,6 @@
 ﻿using GLMS.Core.Models;
 using GLMS.Core.Repositories;
 using GLMS.Infrastructure.Services;
-using GLMS.Web.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
