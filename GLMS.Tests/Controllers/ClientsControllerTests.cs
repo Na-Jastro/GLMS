@@ -1,195 +1,200 @@
-﻿using FluentAssertions;
+﻿using GLMS.Api.Controllers;
 using GLMS.Core.Models;
 using GLMS.Core.Repositories;
-using GLMS.Web.Controllers;
-using Microsoft.AspNetCore.Http;
+using GLMS.Infrastructure;
+using GLMS.Infrastructure.Storage;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Logging;
-using Moq;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace GLMS.Tests.Controllers
 {
-    public class ClientsControllerTests
+    public class ClientsApiControllerTests
     {
-        private readonly Mock<IClientRepository> _repositoryMock;
-        private readonly Mock<ILogger<ClientsController>> _loggerMock;
+        private readonly GLMSDbContext _context;
+        private readonly ClientsApiController _controller;
 
-        private readonly Mock<ISession> _sessionMock;
-        private readonly Mock<HttpContext> _httpContextMock;
-
-        private readonly ClientsController _controller;
-
-        public ClientsControllerTests()
+        public ClientsApiControllerTests()
         {
-            _repositoryMock =
-                new Mock<IClientRepository>();
+            var options = new DbContextOptionsBuilder<GLMSDbContext>()
+                .UseSqlServer(
+                    "server=Justice;database=GLMSDB;Trusted_Connection=True;MultipleActiveResultSets=true;TrustServerCertificate=True;")
+                .Options;
 
-            _loggerMock =
-                new Mock<ILogger<ClientsController>>();
+            _context = new GLMSDbContext(options);
 
-            _sessionMock =
-                new Mock<ISession>();
+            // Create database if it doesn't exist
+            _context.Database.EnsureCreated();
 
-            _httpContextMock =
-                new Mock<HttpContext>();
+            IClientRepository repository = new ClientRepository(_context);
 
-            // SESSION VALUE
-            var sessionBytes =
-                System.Text.Encoding.UTF8
-                    .GetBytes("test@test.com");
-
-            _sessionMock
-                .Setup(s => s.TryGetValue(
-                    "UserEmail",
-                    out sessionBytes))
-                .Returns(true);
-
-            _httpContextMock
-                .Setup(c => c.Session)
-                .Returns(_sessionMock.Object);
-
-            //_controller = new ClientsController(
-            //    _repositoryMock.Object,
-            //    _loggerMock.Object);
-
-            _controller.ControllerContext =
-                new ControllerContext
-                {
-                    HttpContext =
-                        _httpContextMock.Object
-                };
+            _controller = new ClientsApiController(
+                repository,
+                NullLogger<ClientsApiController>.Instance);
         }
 
         [Fact]
-        public async Task Index_ShouldReturnViewWithClients()
+        public async Task GetAll_Returns_All_Clients()
         {
             // Arrange
-            var clients = new List<Client>
-            {
-                new Client
-                {
-                    Id = 1,
-                    Name = "Client A"
-                },
-                new Client
-                {
-                    Id = 2,
-                    Name = "Client B"
-                }
-            };
+            var client1 = new Client { Name = $"Client-{Guid.NewGuid()}", ContactDetails = "Test Contact Details", Region = "Test Region" };
+            var client2 = new Client { Name = $"Client-{Guid.NewGuid()}", ContactDetails = "Test Contact Details 2", Region = "Test Region 2" };
 
-            _repositoryMock
-                .Setup(r => r.GetAllAsync(
-                    It.IsAny<CancellationToken>()))
-                .ReturnsAsync(clients);
+            _context.Clients.AddRange(client1, client2);
+            await _context.SaveChangesAsync();
 
             // Act
-            var result =
-                await _controller.Index(
-                    CancellationToken.None);
+            var result = await _controller.GetAll(CancellationToken.None);
 
             // Assert
-            result.Should().BeOfType<ViewResult>();
+            var okResult = Assert.IsType<OkObjectResult>(result.Result);
 
-            var viewResult =
-                result as ViewResult;
+            var clients =
+                Assert.IsAssignableFrom<IEnumerable<Client>>(okResult.Value);
 
-            viewResult!.Model
-                .Should()
-                .BeEquivalentTo(clients);
+            Assert.Contains(clients, c => c.Id == client1.Id);
+            Assert.Contains(clients, c => c.Id == client2.Id);
         }
 
         [Fact]
-        public async Task Details_ShouldReturnView_WhenClientExists()
+        public async Task GetById_Returns_Client_When_Found()
         {
             // Arrange
             var client = new Client
             {
-                Id = 1,
-                Name = "Test Client"
+                Name = $"Test-{Guid.NewGuid()}",
+                ContactDetails = "Test Contact Details",
+                Region = "Test Region"
             };
 
-            _repositoryMock
-                .Setup(r => r.GetDetailsAsync(
-                    client.Id,
-                    It.IsAny<CancellationToken>()))
-                .ReturnsAsync(client);
+            _context.Clients.Add(client);
+            await _context.SaveChangesAsync();
 
             // Act
-            var result =
-                await _controller.Details(
-                    client.Id,
-                    CancellationToken.None);
+            var result = await _controller.GetById(
+                client.Id,
+                CancellationToken.None);
 
             // Assert
-            result.Should().BeOfType<ViewResult>();
+            var okResult =
+                Assert.IsType<OkObjectResult>(result.Result);
 
-            var viewResult =
-                result as ViewResult;
+            var returnedClient =
+                Assert.IsType<Client>(okResult.Value);
 
-            viewResult!.Model
-                .Should()
-                .Be(client);
+            Assert.Equal(client.Id, returnedClient.Id);
         }
 
         [Fact]
-        public async Task Create_Post_ShouldReturnView_WhenModelStateInvalid()
+        public async Task GetById_Returns_NotFound_When_Client_Does_Not_Exist()
         {
-            // Arrange
-            var client = new Client();
-
-            _controller.ModelState.AddModelError(
-                "Name",
-                "Required");
-
             // Act
-            var result =
-                await _controller.Create(
-                    client,
-                    CancellationToken.None);
+            var result = await _controller.GetById(
+                int.MaxValue,
+                CancellationToken.None);
 
             // Assert
-            result.Should().BeOfType<ViewResult>();
-
-            var viewResult =
-                result as ViewResult;
-
-            viewResult!.Model
-                .Should()
-                .Be(client);
+            Assert.IsType<NotFoundResult>(result.Result);
         }
 
         [Fact]
-        public async Task Delete_Get_ShouldReturnView_WhenClientExists()
+        public async Task Create_Adds_Client()
         {
             // Arrange
             var client = new Client
             {
-                Id = 1,
-                Name = "Delete Client"
+                Name = $"NewClient-{Guid.NewGuid()}",
+                ContactDetails = "New Client Contact Details",
+                Region = "New Client Region"
             };
 
-            _repositoryMock
-                .Setup(r => r.GetByIdAsync(
-                    client.Id,
-                    It.IsAny<CancellationToken>()))
-                .ReturnsAsync(client);
-
             // Act
-            var result =
-                await _controller.Delete(
-                    client.Id,
-                    CancellationToken.None);
+            var result = await _controller.Create(
+                client,
+                CancellationToken.None);
 
             // Assert
-            result.Should().BeOfType<ViewResult>();
+            var created =
+                Assert.IsType<CreatedAtActionResult>(result.Result);
 
-            var viewResult =
-                result as ViewResult;
+            var createdClient =
+                Assert.IsType<Client>(created.Value);
 
-            viewResult!.Model
-                .Should()
-                .Be(client);
+            var exists = await _context.Clients
+                .AnyAsync(c => c.Id == createdClient.Id);
+
+            Assert.True(exists);
+        }
+
+        [Fact]
+        public async Task Update_Returns_NoContent()
+        {
+            // Arrange
+            var client = new Client
+            {
+                Name = $"Old-{Guid.NewGuid()}",
+                ContactDetails = "Old Contact Details",
+                Region = "Old Region"
+            };
+
+            _context.Clients.Add(client);
+            await _context.SaveChangesAsync();
+
+            client.Name = "Updated Client";
+
+            // Act
+            var result = await _controller.Update(
+                client.Id,
+                client,
+                CancellationToken.None);
+
+            // Assert
+            Assert.IsType<NoContentResult>(result);
+
+            var updated =
+                await _context.Clients.FindAsync(client.Id);
+
+            Assert.Equal("Updated Client", updated!.Name);
+        }
+
+        [Fact]
+        public async Task Delete_Removes_Client()
+        {
+            // Arrange
+            var client = new Client
+            {
+                Name = $"Delete-{Guid.NewGuid()}",
+                ContactDetails = "Delete Contact Details",
+                Region = "Delete Region"
+            };
+
+            _context.Clients.Add(client);
+            await _context.SaveChangesAsync();
+
+            // Act
+            var result = await _controller.Delete(
+                client.Id,
+                CancellationToken.None);
+
+            // Assert
+            Assert.IsType<NoContentResult>(result);
+
+            var deleted =
+                await _context.Clients.FindAsync(client.Id);
+
+            Assert.Null(deleted);
+        }
+
+        [Fact]
+        public async Task Delete_Returns_NotFound_When_Client_Does_Not_Exist()
+        {
+            // Act
+            var result = await _controller.Delete(
+                int.MaxValue,
+                CancellationToken.None);
+
+            // Assert
+            Assert.IsType<NotFoundResult>(result);
         }
     }
 }

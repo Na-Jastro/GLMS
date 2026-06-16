@@ -1,409 +1,339 @@
-﻿using FluentAssertions;
-using GLMS.Core.Models;
+﻿using GLMS.Core.Models;
 using GLMS.Core.Repositories;
-using GLMS.Infrastructure.Services;
-using GLMS.Web.Controllers;
+using GLMS.Infrastructure;
+using GLMS.Infrastructure.Repository;
+using GLMS.Infrastructure.Storage;
+using GLMS.Web.Controllers.Api;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.ViewFeatures;
-using Microsoft.Extensions.Logging;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
-using System.Text;
 
 namespace GLMS.Tests.Controllers
 {
-    public class ContractsControllerTests
+    public class ContractsApiControllerTests
     {
-        private readonly Mock<IContractRepository> _repositoryMock;
-        private readonly Mock<IContractService> _serviceMock;
-        private readonly Mock<IWebHostEnvironment> _environmentMock;
-        private readonly Mock<ILogger<ContractsController>> _loggerMock;
+        private readonly GLMSDbContext _context;
+        private readonly ContractsApiController _controller;
 
-        private readonly ContractsController _controller;
-
-        public ContractsControllerTests()
+        public ContractsApiControllerTests()
         {
-            _repositoryMock =
-                new Mock<IContractRepository>();
+            var options = new DbContextOptionsBuilder<GLMSDbContext>()
+                .UseSqlServer(
+                    "server=Justice;database=GLMSDB;Trusted_Connection=True;MultipleActiveResultSets=true;TrustServerCertificate=True;")
+                .Options;
 
-            _serviceMock =
-                new Mock<IContractService>();
+            _context = new GLMSDbContext(options);
 
-            _environmentMock =
-                new Mock<IWebHostEnvironment>();
+            _context.Database.EnsureCreated();
 
-            _loggerMock =
-                new Mock<ILogger<ContractsController>>();
+            IContractRepository repository =
+                new ContractRepository(_context);
 
-            //_controller = new ContractsController(
-            //    _repositoryMock.Object,
-            //    _serviceMock.Object,
-            //    _environmentMock.Object,
-            //    _loggerMock.Object);
+            var environment = new Mock<IWebHostEnvironment>();
+
+            environment.Setup(x => x.ContentRootPath)
+                .Returns(AppContext.BaseDirectory);
+
+            _controller = new ContractsApiController(
+                repository,
+                environment.Object,
+                NullLogger<ContractsApiController>.Instance);
         }
 
-        // HELPER
-        private void SetupLoggedInUser()
+        private async Task<Client> CreateClientAsync()
         {
-            var sessionMock =
-                new Mock<ISession>();
-
-            var context =
-                new DefaultHttpContext();
-
-            var sessionBytes =
-                Encoding.UTF8.GetBytes("test@test.com");
-
-            sessionMock
-                .Setup(s => s.TryGetValue(
-                    "UserEmail",
-                    out sessionBytes))
-                .Returns(true);
-
-            context.Session =
-                sessionMock.Object;
-
-            _controller.ControllerContext =
-                new ControllerContext
-                {
-                    HttpContext = context
-                };
-
-            _controller.TempData =
-                new TempDataDictionary(
-                    context,
-                    Mock.Of<ITempDataProvider>());
-        }
-
-        [Fact]
-        public async Task Index_ShouldReturnViewWithContracts()
-        {
-            // Arrange
-            SetupLoggedInUser();
-
-            var contracts = new List<Contract>
+            var client = new Client
             {
-                new Contract
-                {
-                    Id = 1,
-                    ServiceLevel = "Gold",
-                    Status = ContractStatus.Active
-                }
+                Name = $"Client-{Guid.NewGuid()}",
+                ContactDetails = "Test Contact",
+                Region = "Test Region"
             };
 
-            _repositoryMock
-                .Setup(r => r.GetAllAsync(
-                    null,
-                    null,
-                    null,
-                    null,
-                    It.IsAny<CancellationToken>()))
-                .ReturnsAsync(contracts);
+            _context.Clients.Add(client);
+            await _context.SaveChangesAsync();
 
-            _repositoryMock
-                .Setup(r => r.GetClientsAsync(
-                    It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new List<Client>());
-
-            _repositoryMock
-                .Setup(r => r.GetTotalCountAsync(
-                    It.IsAny<CancellationToken>()))
-                .ReturnsAsync(1);
-
-            _repositoryMock
-                .Setup(r => r.GetActiveCountAsync(
-                    It.IsAny<CancellationToken>()))
-                .ReturnsAsync(1);
-
-            _repositoryMock
-                .Setup(r => r.GetExpiredCountAsync(
-                    It.IsAny<CancellationToken>()))
-                .ReturnsAsync(0);
-
-            _serviceMock
-                .Setup(s => s.AutoUpdateExpiryAsync())
-                .Returns(Task.CompletedTask);
-
-            // Act
-            var result =
-                await _controller.Index(
-                    null,
-                    null,
-                    null,
-                    null,
-                    CancellationToken.None);
-
-            // Assert
-            result.Should()
-                .BeOfType<ViewResult>();
-
-            var view =
-                result as ViewResult;
-
-            view!.Model
-                .Should()
-                .BeEquivalentTo(contracts);
+            return client;
         }
 
         [Fact]
-        public async Task Details_ShouldReturnView_WhenContractExists()
+        public async Task GetAll_Returns_Contracts()
         {
             // Arrange
-            SetupLoggedInUser();
+            var client = await CreateClientAsync();
+
+            var contract = new Contract
+            {
+                ClientId = client.Id,
+                StartDate = DateTime.Today,
+                EndDate = DateTime.Today.AddMonths(12),
+                Status = ContractStatus.Active,
+                ServiceLevel = "Gold"
+            };
+
+            _context.Contracts.Add(contract);
+            await _context.SaveChangesAsync();
+
+            // Act
+            var result = await _controller.GetAll(
+                null,
+                null,
+                null,
+                null,
+                CancellationToken.None);
+
+            // Assert
+            var okResult =
+                Assert.IsType<OkObjectResult>(result.Result);
+
+            var contracts =
+                Assert.IsAssignableFrom<IEnumerable<Contract>>(
+                    okResult.Value);
+
+            Assert.Contains(
+                contracts,
+                c => c.Id == contract.Id);
+        }
+
+        [Fact]
+        public async Task GetById_Returns_Contract_When_Found()
+        {
+            // Arrange
+            var client = await CreateClientAsync();
+
+            var contract = new Contract
+            {
+                ClientId = client.Id,
+                StartDate = DateTime.Today,
+                EndDate = DateTime.Today.AddMonths(12),
+                Status = ContractStatus.Active,
+                ServiceLevel = "Gold"
+            };
+
+            _context.Contracts.Add(contract);
+            await _context.SaveChangesAsync();
+
+            // Act
+            var result = await _controller.GetById(
+                contract.Id,
+                CancellationToken.None);
+
+            // Assert
+            var okResult =
+                Assert.IsType<OkObjectResult>(result.Result);
+
+            var returnedContract =
+                Assert.IsType<Contract>(okResult.Value);
+
+            Assert.Equal(
+                contract.Id,
+                returnedContract.Id);
+        }
+
+        [Fact]
+        public async Task GetById_Returns_NotFound_When_Missing()
+        {
+            // Act
+            var result = await _controller.GetById(
+                int.MaxValue,
+                CancellationToken.None);
+
+            // Assert
+            Assert.IsType<NotFoundResult>(
+                result.Result);
+        }
+
+        [Fact]
+        public async Task Create_Adds_Contract()
+        {
+            // Arrange
+            var client = await CreateClientAsync();
+
+            var contract = new Contract
+            {
+                ClientId = client.Id,
+                StartDate = DateTime.Today,
+                EndDate = DateTime.Today.AddMonths(12),
+                Status = ContractStatus.Active,
+                ServiceLevel = "Gold"
+            };
+
+            // Act
+            var result = await _controller.Create(
+                contract,
+                CancellationToken.None);
+
+            // Assert
+            var created =
+                Assert.IsType<CreatedAtActionResult>(
+                    result.Result);
+
+            var createdContract =
+                Assert.IsType<Contract>(created.Value);
+
+            var exists = await _context.Contracts
+                .AnyAsync(c => c.Id == createdContract.Id);
+
+            Assert.True(exists);
+        }
+
+        [Fact]
+        public async Task Create_Returns_BadRequest_When_EndDate_Is_Before_StartDate()
+        {
+            // Arrange
+            var client = await CreateClientAsync();
+
+            var contract = new Contract
+            {
+                ClientId = client.Id,
+                StartDate = DateTime.Today,
+                EndDate = DateTime.Today.AddDays(-1),
+                Status = ContractStatus.Active,
+                ServiceLevel = "Gold"
+            };
+
+            // Act
+            var result = await _controller.Create(
+                contract,
+                CancellationToken.None);
+
+            // Assert
+            Assert.IsType<BadRequestObjectResult>(
+                result.Result);
+        }
+
+        [Fact]
+        public async Task Update_Returns_NoContent()
+        {
+            // Arrange
+            var client = await CreateClientAsync();
+
+            var contract = new Contract
+            {
+                ClientId = client.Id,
+                StartDate = DateTime.Today,
+                EndDate = DateTime.Today.AddMonths(12),
+                Status = ContractStatus.Active,
+                ServiceLevel = "Gold"
+            };
+
+            _context.Contracts.Add(contract);
+            await _context.SaveChangesAsync();
+
+            contract.ServiceLevel = "Platinum";
+
+            // Act
+            var result = await _controller.Update(
+                contract.Id,
+                contract,
+                CancellationToken.None);
+
+            // Assert
+            Assert.IsType<NoContentResult>(result);
+
+            var updated =
+                await _context.Contracts.FindAsync(contract.Id);
+
+            Assert.Equal(
+                "Platinum",
+                updated!.ServiceLevel);
+        }
+
+        [Fact]
+        public async Task Update_Returns_BadRequest_When_Ids_Do_Not_Match()
+        {
+            // Arrange
+            var client = await CreateClientAsync();
 
             var contract = new Contract
             {
                 Id = 1,
+                ClientId = client.Id,
+                StartDate = DateTime.Today,
+                EndDate = DateTime.Today.AddMonths(12),
+                Status = ContractStatus.Active,
                 ServiceLevel = "Gold"
             };
 
-            _repositoryMock
-                .Setup(r => r.GetDetailsAsync(
-                    1,
-                    It.IsAny<CancellationToken>()))
-                .ReturnsAsync(contract);
-
             // Act
-            var result =
-                await _controller.Details(
-                    1,
-                    CancellationToken.None);
+            var result = await _controller.Update(
+                999,
+                contract,
+                CancellationToken.None);
 
             // Assert
-            result.Should()
-                .BeOfType<ViewResult>();
-
-            var view =
-                result as ViewResult;
-
-            view!.Model
-                .Should()
-                .Be(contract);
+            Assert.IsType<BadRequestObjectResult>(
+                result);
         }
 
         [Fact]
-        public async Task Create_Post_ShouldReturnView_WhenInvalid()
+        public async Task Delete_Removes_Contract()
         {
             // Arrange
-            SetupLoggedInUser();
+            var client = await CreateClientAsync();
 
             var contract = new Contract
             {
+                ClientId = client.Id,
                 StartDate = DateTime.Today,
-                EndDate = DateTime.Today.AddDays(-1)
+                EndDate = DateTime.Today.AddMonths(12),
+                Status = ContractStatus.Active,
+                ServiceLevel = "Gold"
             };
 
-            _repositoryMock
-                .Setup(r => r.GetClientsAsync())
-                .ReturnsAsync(new List<Client>());
+            _context.Contracts.Add(contract);
+            await _context.SaveChangesAsync();
 
             // Act
-            var result =
-                await _controller.Create(
-                    contract,
-                    CancellationToken.None);
+            var result = await _controller.Delete(
+                contract.Id,
+                CancellationToken.None);
 
             // Assert
-            result.Should()
-                .BeOfType<ViewResult>();
+            Assert.IsType<NoContentResult>(result);
+
+            var deleted =
+                await _context.Contracts.FindAsync(
+                    contract.Id);
+
+            Assert.Null(deleted);
         }
 
         [Fact]
-        public async Task Edit_Get_ShouldReturnView_WhenExists()
+        public async Task Delete_Returns_NotFound_When_Missing()
         {
-            // Arrange
-            SetupLoggedInUser();
-
-            var contract = new Contract
-            {
-                Id = 1
-            };
-
-            _repositoryMock
-                .Setup(r => r.GetByIdAsync(
-                    1,
-                    It.IsAny<CancellationToken>()))
-                .ReturnsAsync(contract);
-
-            _repositoryMock
-                .Setup(r => r.GetClientsAsync())
-                .ReturnsAsync(new List<Client>());
-
             // Act
-            var result =
-                await _controller.Edit(
-                    1,
-                    CancellationToken.None);
+            var result = await _controller.Delete(
+                int.MaxValue,
+                CancellationToken.None);
 
             // Assert
-            result.Should()
-                .BeOfType<ViewResult>();
+            Assert.IsType<NotFoundResult>(
+                result);
         }
 
         [Fact]
-        public async Task Delete_ShouldReturnView_WhenExists()
+        public async Task GetStatistics_Returns_Ok()
         {
-            // Arrange
-            SetupLoggedInUser();
-
-            var contract = new Contract
-            {
-                Id = 1
-            };
-
-            _repositoryMock
-                .Setup(r => r.GetDetailsAsync(
-                    1,
-                    It.IsAny<CancellationToken>()))
-                .ReturnsAsync(contract);
-
             // Act
-            var result =
-                await _controller.Delete(
-                    1,
-                    CancellationToken.None);
+            var result = await _controller.GetStatistics(
+                CancellationToken.None);
 
             // Assert
-            result.Should()
-                .BeOfType<ViewResult>();
+            Assert.IsType<OkObjectResult>(result);
         }
 
-        [Theory]
-        [InlineData("SignedAgreement.pdf", true)]
-        [InlineData("SignedAgreement.docx", false)]
-        public async Task UploadSignedAgreement_ShouldOnlyAllowPdfFiles(
-           string fileName,
-           bool shouldPass)
-        {
-            // Arrange
-            SetupLoggedInUser();
-
-            var contract = new Contract
-            {
-                Id = 1
-            };
-
-            _repositoryMock
-                .Setup(r => r.GetByIdAsync(
-                    1,
-                    It.IsAny<CancellationToken>()))
-                .ReturnsAsync(contract);
-
-            var tempRoot =
-                Path.Combine(
-                    Path.GetTempPath(),
-                    Guid.NewGuid().ToString());
-
-            Directory.CreateDirectory(tempRoot);
-
-            _environmentMock
-                .Setup(e => e.WebRootPath)
-                .Returns(tempRoot);
-
-            // CREATE TEMP FILE
-            var tempFile =
-                Path.Combine(
-                    tempRoot,
-                    fileName);
-
-            await File.WriteAllTextAsync(
-                tempFile,
-                "Test Content");
-
-            IFormFile file;
-
-            await using (var stream =
-                new FileStream(
-                    tempFile,
-                    FileMode.Open,
-                    FileAccess.Read))
-            {
-                file =
-                    new FormFile(
-                        stream,
-                        0,
-                        stream.Length,
-                        "file",
-                        fileName)
-                    {
-                        Headers = new HeaderDictionary(),
-                        ContentType =
-                            fileName.EndsWith(".pdf")
-                                ? "application/pdf"
-                                : "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                    };
-
-                // Act
-                var result =
-                    await _controller.UploadSignedAgreement(
-                        1,
-                        file,
-                        CancellationToken.None);
-
-                // Assert
-                result.Should()
-                    .BeOfType<RedirectToActionResult>();
-
-                if (shouldPass)
-                {
-                    _controller.TempData["SuccessMessage"]
-                        .Should()
-                        .Be("Signed agreement uploaded successfully.");
-
-                    contract.SignedAgreementPath
-                        .Should()
-                        .NotBeNullOrWhiteSpace();
-
-                    _repositoryMock.Verify(
-                        r => r.UpdateAsync(
-                            contract,
-                            It.IsAny<CancellationToken>()),
-                        Times.Once);
-                }
-                else
-                {
-                    _controller.TempData["ErrorMessage"]
-                        .Should()
-                        .Be("Only PDF files are allowed.");
-
-                    _repositoryMock.Verify(
-                        r => r.UpdateAsync(
-                            It.IsAny<Contract>(),
-                            It.IsAny<CancellationToken>()),
-                        Times.Never);
-                }
-            }
-
-            // CLEANUP
-            if (Directory.Exists(tempRoot))
-            {
-                Directory.Delete(
-                    tempRoot,
-                    true);
-            }
-        }
         [Fact]
-        public async Task DownloadAgreement_ShouldRedirect_WhenContractMissing()
+        public async Task GetClients_Returns_Ok()
         {
-            // Arrange
-            SetupLoggedInUser();
-
-            _repositoryMock
-                .Setup(r => r.GetByIdAsync(
-                    1,
-                    It.IsAny<CancellationToken>()))
-                .ReturnsAsync((Contract?)null);
-
             // Act
-            var result =
-                await _controller.DownloadAgreement(
-                    1,
-                    CancellationToken.None);
+            var result = await _controller.GetClients(
+                CancellationToken.None);
 
             // Assert
-            result.Should()
-                .BeOfType<RedirectToActionResult>();
+            Assert.IsType<OkObjectResult>(result);
         }
     }
 }
